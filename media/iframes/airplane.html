@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>3D Airplane MIDI Orientation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(180deg, #1a4d7a 0%, #87ceeb 100%);
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        #canvas-container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+        
+        canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        
+        #orientation-display {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 16px;
+            min-width: 200px;
+        }
+        
+        .orientation-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 8px 0;
+            padding: 5px;
+            border-left: 3px solid;
+        }
+        
+        .orientation-row.pitch { border-left-color: #ff4444; }
+        .orientation-row.yaw { border-left-color: #44ff44; }
+        .orientation-row.roll { border-left-color: #4444ff; }
+        
+        .label {
+            font-weight: bold;
+        }
+        
+        .value {
+            font-family: monospace;
+        }
+        
+        #midi-status {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        
+        #midi-status.connected {
+            background: rgba(76, 175, 80, 0.8);
+        }
+    </style>
+</head>
+<body>
+    <div id="canvas-container">
+        <canvas id="airplane-canvas"></canvas>
+        
+        <div id="orientation-display">
+            <div style="font-weight: bold; margin-bottom: 10px; text-align: center;">Orientation</div>
+            <div class="orientation-row pitch">
+                <span class="label">Pitch:</span>
+                <span class="value" id="pitch-value">0.0°</span>
+            </div>
+            <div class="orientation-row yaw">
+                <span class="label">Yaw:</span>
+                <span class="value" id="yaw-value">0.0°</span>
+            </div>
+            <div class="orientation-row roll">
+                <span class="label">Roll:</span>
+                <span class="value" id="roll-value">0.0°</span>
+            </div>
+        </div>
+        
+        <div id="midi-status">MIDI: Disconnected</div>
+    </div>
+
+    <script>
+        // Canvas setup
+        const canvas = document.getElementById('airplane-canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // MIDI setup
+        let midi = null;
+        let midiConnected = false;
+        let testModeInterval = null;
+        
+        // Orientation values in degrees
+        let pitch = 0;  // Nose up/down
+        let yaw = 0;    // Nose left/right
+        let roll = 0;   // Banking left/right
+        
+        // MIDI CC mappings
+        const ccMappings = {
+            80: 'roll',   // CC 80 for roll
+            81: 'yaw',    // CC 81 for yaw
+            82: 'pitch'   // CC 82 for pitch
+        };
+        
+        const scaleFactor = 2.83; // Same as orientation.html
+        
+        // UI elements
+        const pitchDisplay = document.getElementById('pitch-value');
+        const yawDisplay = document.getElementById('yaw-value');
+        const rollDisplay = document.getElementById('roll-value');
+        const midiStatus = document.getElementById('midi-status');
+        
+        // Initialize MIDI
+        if (navigator.requestMIDIAccess) {
+            navigator.requestMIDIAccess({ sysex: false })
+                .then(onMIDISuccess, onMIDIFailure);
+        }
+        
+        function onMIDISuccess(midiAccess) {
+            midi = midiAccess;
+            midiConnected = true;
+            updateMIDIStatus();
+            
+            // Stop test mode if it's running
+            if (testModeInterval) {
+                clearInterval(testModeInterval);
+                testModeInterval = null;
+            }
+            
+            const inputs = midi.inputs.values();
+            for (let input = inputs.next(); input && !input.done; input = inputs.next()) {
+                input.value.onmidimessage = onMIDIMessage;
+            }
+        }
+        
+        function onMIDIFailure(e) {
+            console.log("MIDI access failed:", e);
+            midiConnected = false;
+            updateMIDIStatus();
+        }
+        
+        function updateMIDIStatus() {
+            midiStatus.textContent = midiConnected ? "MIDI: Connected" : "MIDI: Disconnected";
+            midiStatus.className = midiConnected ? "connected" : "";
+        }
+        
+        function onMIDIMessage(message) {
+            const data = message.data;
+            
+            // Check if it's a CC message (0xB0-0xBF)
+            if ((data[0] & 0xF0) === 0xB0) {
+                const cc = data[1];
+                const value = data[2];
+                
+                if (ccMappings[cc]) {
+                    const axis = ccMappings[cc];
+                    // Convert MIDI value (0-127) to degrees (-180 to +180)
+                    const degrees = (value - 63.5) * scaleFactor;
+                    
+                    if (axis === 'pitch') {
+                        pitch = degrees;
+                        pitchDisplay.textContent = degrees.toFixed(1) + '°';
+                    } else if (axis === 'yaw') {
+                        yaw = degrees;
+                        yawDisplay.textContent = degrees.toFixed(1) + '°';
+                    } else if (axis === 'roll') {
+                        roll = degrees;
+                        rollDisplay.textContent = degrees.toFixed(1) + '°';
+                    }
+                }
+            }
+        }
+        
+        function resizeCanvas() {
+            canvas.width = canvas.clientWidth;
+            canvas.height = canvas.clientHeight;
+        }
+        
+        // 3D projection functions
+        function rotateX(x, y, z, angle) {
+            const rad = angle * Math.PI / 180;
+            const cos = Math.cos(rad);
+            const sin = Math.sin(rad);
+            return {
+                x: x,
+                y: y * cos - z * sin,
+                z: y * sin + z * cos
+            };
+        }
+        
+        function rotateY(x, y, z, angle) {
+            const rad = angle * Math.PI / 180;
+            const cos = Math.cos(rad);
+            const sin = Math.sin(rad);
+            return {
+                x: x * cos + z * sin,
+                y: y,
+                z: -x * sin + z * cos
+            };
+        }
+        
+        function rotateZ(x, y, z, angle) {
+            const rad = angle * Math.PI / 180;
+            const cos = Math.cos(rad);
+            const sin = Math.sin(rad);
+            return {
+                x: x * cos - y * sin,
+                y: x * sin + y * cos,
+                z: z
+            };
+        }
+        
+        function project(x, y, z) {
+            // Apply rotations in order: yaw, pitch, roll
+            let p = { x, y, z };
+            p = rotateY(p.x, p.y, p.z, yaw);
+            p = rotateX(p.x, p.y, p.z, pitch);
+            p = rotateZ(p.x, p.y, p.z, roll);
+            
+            // Perspective projection
+            const distance = 600;
+            const scale = distance / (distance + p.z);
+            
+            return {
+                x: canvas.width / 2 + p.x * scale,
+                y: canvas.height / 2 - p.y * scale,
+                z: p.z
+            };
+        }
+        
+        // Define 3D airplane model
+        function getAirplaneVertices() {
+            const scale = 1.5;
+            return {
+                // Fuselage
+                nose: [0, 0, 120 * scale],
+                tail: [0, 0, -120 * scale],
+                
+                // Front fuselage cross-section
+                frontTop: [0, 15 * scale, 80 * scale],
+                frontBottom: [0, -15 * scale, 80 * scale],
+                frontLeft: [-15 * scale, 0, 80 * scale],
+                frontRight: [15 * scale, 0, 80 * scale],
+                
+                // Mid fuselage cross-section
+                midTop: [0, 20 * scale, 0],
+                midBottom: [0, -20 * scale, 0],
+                midLeft: [-20 * scale, 0, 0],
+                midRight: [20 * scale, 0, 0],
+                
+                // Rear fuselage
+                rearTop: [0, 15 * scale, -80 * scale],
+                rearBottom: [0, -15 * scale, -80 * scale],
+                rearLeft: [-15 * scale, 0, -80 * scale],
+                rearRight: [15 * scale, 0, -80 * scale],
+                
+                // Main wings
+                wingLeftTip: [-150 * scale, 0, 20 * scale],
+                wingLeftMid: [-80 * scale, 0, 20 * scale],
+                wingRightTip: [150 * scale, 0, 20 * scale],
+                wingRightMid: [80 * scale, 0, 20 * scale],
+                wingCenterFront: [0, 0, 30 * scale],
+                wingCenterBack: [0, 0, 10 * scale],
+                
+                // Tail wings (horizontal stabilizer)
+                tailWingLeft: [-50 * scale, 0, -90 * scale],
+                tailWingRight: [50 * scale, 0, -90 * scale],
+                tailWingCenter: [0, 0, -85 * scale],
+                
+                // Vertical stabilizer
+                finTop: [0, 40 * scale, -90 * scale],
+                finMid: [0, 20 * scale, -85 * scale],
+            };
+        }
+        
+        function drawAirplane() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            const v = getAirplaneVertices();
+            const projected = {};
+            
+            // Project all vertices
+            for (const [key, coords] of Object.entries(v)) {
+                projected[key] = project(coords[0], coords[1], coords[2]);
+            }
+            
+            // Helper function to draw line between projected points
+            function line(p1, p2, color = '#333', width = 2) {
+                ctx.strokeStyle = color;
+                ctx.lineWidth = width;
+                ctx.beginPath();
+                ctx.moveTo(p1.x, p1.y);
+                ctx.lineTo(p2.x, p2.y);
+                ctx.stroke();
+            }
+            
+            // Helper function to draw filled polygon
+            function polygon(points, fillColor, strokeColor = '#222', strokeWidth = 2) {
+                ctx.fillStyle = fillColor;
+                ctx.strokeStyle = strokeColor;
+                ctx.lineWidth = strokeWidth;
+                ctx.beginPath();
+                ctx.moveTo(points[0].x, points[0].y);
+                for (let i = 1; i < points.length; i++) {
+                    ctx.lineTo(points[i].x, points[i].y);
+                }
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+            }
+            
+            // Calculate average z for depth sorting
+            function avgZ(points) {
+                return points.reduce((sum, p) => sum + p.z, 0) / points.length;
+            }
+            
+            // Collect all faces with their average Z
+            const faces = [];
+            
+            // Fuselage sides
+            faces.push({
+                z: avgZ([projected.nose, projected.frontTop, projected.midTop, projected.rearTop, projected.tail]),
+                draw: () => polygon([projected.nose, projected.frontTop, projected.midTop, projected.rearTop, projected.tail], '#e0e0e0', '#333', 2)
+            });
+            
+            faces.push({
+                z: avgZ([projected.nose, projected.frontBottom, projected.midBottom, projected.rearBottom, projected.tail]),
+                draw: () => polygon([projected.nose, projected.frontBottom, projected.midBottom, projected.rearBottom, projected.tail], '#c0c0c0', '#333', 2)
+            });
+            
+            faces.push({
+                z: avgZ([projected.nose, projected.frontLeft, projected.midLeft, projected.rearLeft, projected.tail]),
+                draw: () => polygon([projected.nose, projected.frontLeft, projected.midLeft, projected.rearLeft, projected.tail], '#d0d0d0', '#333', 2)
+            });
+            
+            faces.push({
+                z: avgZ([projected.nose, projected.frontRight, projected.midRight, projected.rearRight, projected.tail]),
+                draw: () => polygon([projected.nose, projected.frontRight, projected.midRight, projected.rearRight, projected.tail], '#d0d0d0', '#333', 2)
+            });
+            
+            // Main wings
+            faces.push({
+                z: avgZ([projected.wingLeftTip, projected.wingLeftMid, projected.wingCenterFront, projected.wingCenterBack]),
+                draw: () => polygon([projected.wingLeftTip, projected.wingLeftMid, projected.wingCenterFront, projected.wingCenterBack], '#ff4444', '#cc0000', 3)
+            });
+            
+            faces.push({
+                z: avgZ([projected.wingRightTip, projected.wingRightMid, projected.wingCenterFront, projected.wingCenterBack]),
+                draw: () => polygon([projected.wingRightTip, projected.wingRightMid, projected.wingCenterFront, projected.wingCenterBack], '#ff4444', '#cc0000', 3)
+            });
+            
+            // Tail wings (horizontal stabilizer)
+            faces.push({
+                z: avgZ([projected.tailWingLeft, projected.tailWingCenter, projected.tailWingRight]),
+                draw: () => polygon([projected.tailWingLeft, projected.tailWingCenter, projected.tailWingRight], '#4444ff', '#0000cc', 2)
+            });
+            
+            // Vertical stabilizer
+            faces.push({
+                z: avgZ([projected.finTop, projected.finMid, projected.tailWingCenter, projected.tail]),
+                draw: () => polygon([projected.finTop, projected.finMid, projected.tailWingCenter, projected.tail], '#44ff44', '#00cc00', 2)
+            });
+            
+            // Sort faces by Z (back to front)
+            faces.sort((a, b) => a.z - b.z);
+            
+            // Draw all faces in order
+            faces.forEach(face => face.draw());
+            
+            // Draw cockpit window
+            const cockpitWindow = project(0, 10, 90);
+            ctx.fillStyle = '#4a90e2';
+            ctx.strokeStyle = '#2a5a9a';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(cockpitWindow.x, cockpitWindow.y, 8, 0, 2 * Math.PI);
+            ctx.fill();
+            ctx.stroke();
+        }
+        
+        function animate() {
+            drawAirplane();
+            requestAnimationFrame(animate);
+        }
+        
+        // Event listeners
+        window.addEventListener('resize', resizeCanvas);
+        
+        // Initialize
+        resizeCanvas();
+        animate();
+        
+        // Test mode - generate smooth test data if no MIDI
+        setTimeout(() => {
+            if (!midiConnected) {
+                console.log("No MIDI connected, starting test mode...");
+                let testTime = 0;
+                testModeInterval = setInterval(() => {
+                    testTime += 0.05;
+                    pitch = Math.sin(testTime * 0.5) * 30;
+                    yaw = Math.cos(testTime * 0.3) * 40;
+                    roll = Math.sin(testTime * 0.7) * 45;
+                    
+                    pitchDisplay.textContent = pitch.toFixed(1) + '°';
+                    yawDisplay.textContent = yaw.toFixed(1) + '°';
+                    rollDisplay.textContent = roll.toFixed(1) + '°';
+                }, 50);
+            }
+        }, 2000);
+    </script>
+</body>
+</html>

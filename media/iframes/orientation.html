@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>MIDI Device Orientation Visualizer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #0c0c0c 0%, #1a1a1a 100%);
+            color: #ffffff;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            grid-template-rows: 1fr;
+            transition: grid-template-columns 0.3s ease;
+        }
+        
+        body.sidebar-hidden {
+            grid-template-columns: 0px 1fr;
+        }
+        
+        #controls {
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            border-right: 2px solid #333;
+            overflow-y: auto;
+            transition: transform 0.3s ease;
+        }
+        
+        body.sidebar-hidden #controls {
+            transform: translateX(-100%);
+        }
+        
+        #visualization {
+            position: relative;
+            background: linear-gradient(45deg, #111 0%, #222 100%);
+        }
+        
+        canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        
+        .control-section {
+            margin-bottom: 25px;
+        }
+        
+        .control-section h3 {
+            color: #4CAF50;
+            margin-bottom: 10px;
+            font-size: 16px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .orientation-control {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+            padding: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 4px;
+            border-left: 3px solid;
+        }
+        
+        .orientation-control.pitch { border-left-color: #ff4444; }
+        .orientation-control.yaw { border-left-color: #44ff44; }
+        .orientation-control.roll { border-left-color: #4444ff; }
+        
+        .orientation-control input[type="checkbox"] {
+            margin-right: 10px;
+        }
+        
+        .orientation-control label {
+            flex: 1;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        
+        .value-display {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 4px 8px;
+            border-radius: 3px;
+            font-family: monospace;
+            min-width: 60px;
+            text-align: center;
+        }
+        
+        button {
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+        
+        button:hover {
+            background: linear-gradient(135deg, #45a049 0%, #4CAF50 100%);
+            transform: translateY(-1px);
+        }
+        
+        .status {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+        }
+        
+        .status.connected {
+            border-left: 3px solid #4CAF50;
+        }
+        
+        .status.disconnected {
+            border-left: 3px solid #ff4444;
+        }
+        
+        .device-3d {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 200px;
+            height: 200px;
+            background: rgba(0, 0, 0, 0.7);
+            border-radius: 10px;
+            border: 2px solid #333;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .toggle-sidebar {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #333;
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            z-index: 1000;
+            transition: all 0.3s ease;
+        }
+        
+        .toggle-sidebar:hover {
+            background: rgba(0, 0, 0, 0.9);
+            border-color: #4CAF50;
+        }
+        
+        .device-cube {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(45deg, #555, #777);
+            border: 2px solid #999;
+            border-radius: 5px;
+            transform-style: preserve-3d;
+            transition: transform 0.1s ease;
+        }
+        
+        input[type="number"] {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid #444;
+            color: white;
+            padding: 5px;
+            border-radius: 3px;
+            width: 80px;
+        }
+    </style>
+</head>
+<body>
+    <div id="controls">
+        <div class="status" id="midiStatus">
+            MIDI: Disconnected
+        </div>
+        
+        <div class="control-section">
+            <h3>Orientation Channels</h3>
+            <div class="orientation-control pitch">
+                <input type="checkbox" id="pitchEnabled" checked>
+                <label for="pitchEnabled">Pitch (CC 82)</label>
+                <div class="value-display" id="pitchValue">0°</div>
+            </div>
+            <div class="orientation-control yaw">
+                <input type="checkbox" id="yawEnabled" checked>
+                <label for="yawEnabled">Yaw (CC 81)</label>
+                <div class="value-display" id="yawValue">0°</div>
+            </div>
+            <div class="orientation-control roll">
+                <input type="checkbox" id="rollEnabled" checked>
+                <label for="rollEnabled">Roll (CC 80)</label>
+                <div class="value-display" id="rollValue">0°</div>
+            </div>
+        </div>
+        
+        <div class="control-section">
+            <h3>Visualization</h3>
+            <label>
+                Time Window (s):
+                <input type="number" id="timeWindow" value="10" min="1" max="60">
+            </label>
+            <br><br>
+            <label>
+                Scale Factor:
+                <input type="number" id="scaleFactor" value="2.83" min="0.1" max="10" step="0.1">
+            </label>
+            <br><br>
+            <button id="clearData">Clear Data</button>
+            <button id="exportData">Export CSV</button>
+        </div>
+        
+        <div class="control-section">
+            <h3>Test Mode</h3>
+            <button id="testMode">Generate Test Data</button>
+        </div>
+    </div>
+    
+    <div id="visualization">
+        <button class="toggle-sidebar" id="toggleSidebar">☰</button>
+        <canvas id="orientationGraph"></canvas>
+        <div class="device-3d">
+            <div class="device-cube" id="deviceCube"></div>
+        </div>
+    </div>
+
+    <script>
+        // MIDI Setup
+        let midi = null;
+        let midiConnected = false;
+        
+        // Data storage
+        let orientationData = new Map();
+        let currentTime = 0;
+        let lastValues = { pitch: 0, yaw: 0, roll: 0 };
+        
+        // Canvas setup
+        const canvas = document.getElementById('orientationGraph');
+        const ctx = canvas.getContext('2d');
+        
+        // UI elements
+        const midiStatus = document.getElementById('midiStatus');
+        const pitchValue = document.getElementById('pitchValue');
+        const yawValue = document.getElementById('yawValue');
+        const rollValue = document.getElementById('rollValue');
+        const deviceCube = document.getElementById('deviceCube');
+        const timeWindowInput = document.getElementById('timeWindow');
+        const scaleFactorInput = document.getElementById('scaleFactor');
+        
+        // Colors for each orientation axis
+        const colors = {
+            pitch: '#ff4444',  // Red
+            yaw: '#44ff44',    // Green  
+            roll: '#4444ff'    // Blue
+        };
+        
+        // MIDI CC mappings based on your data (swapped pitch and yaw)
+        const ccMappings = {
+            80: 'roll',   // CC 80 for roll
+            81: 'yaw',    // CC 81 for yaw (was pitch)
+            82: 'pitch'   // CC 82 for pitch (was yaw)
+        };
+        
+        // Initialize MIDI
+        if (navigator.requestMIDIAccess) {
+            navigator.requestMIDIAccess({ sysex: false })
+                .then(onMIDISuccess, onMIDIFailure);
+        } else {
+            alert("No MIDI support in your browser.");
+        }
+        
+        function onMIDISuccess(midiAccess) {
+            midi = midiAccess;
+            midiConnected = true;
+            updateMIDIStatus();
+            
+            // Listen to all MIDI inputs
+            const inputs = midi.inputs.values();
+            for (let input = inputs.next(); input && !input.done; input = inputs.next()) {
+                input.value.onmidimessage = onMIDIMessage;
+            }
+        }
+        
+        function onMIDIFailure(e) {
+            console.log("MIDI access failed:", e);
+            midiConnected = false;
+            updateMIDIStatus();
+        }
+        
+        function updateMIDIStatus() {
+            midiStatus.textContent = midiConnected ? "MIDI: Connected" : "MIDI: Disconnected";
+            midiStatus.className = midiConnected ? "status connected" : "status disconnected";
+        }
+        
+        function onMIDIMessage(message) {
+            const data = message.data;
+            currentTime = message.timeStamp / 1000.0;
+            
+            // Check if it's a CC message (0xB0-0xBF)
+            if ((data[0] & 0xF0) === 0xB0) {
+                const cc = data[1];
+                const value = data[2];
+                
+                if (ccMappings[cc]) {
+                    const axis = ccMappings[cc];
+                    // Convert MIDI value (0-127) to degrees (-180 to +180)
+                    const degrees = (value - 63.5) * parseFloat(scaleFactorInput.value);
+                    
+                    // Store data point
+                    const dataKey = currentTime + Math.random() / 1000000.0;
+                    orientationData.set(dataKey, { 
+                        axis: axis, 
+                        value: degrees,
+                        rawValue: value
+                    });
+                    
+                    lastValues[axis] = degrees;
+                    updateDisplays();
+                    updateDeviceOrientation();
+                }
+            }
+        }
+        
+        function updateDisplays() {
+            pitchValue.textContent = lastValues.pitch.toFixed(1) + '°';
+            yawValue.textContent = lastValues.yaw.toFixed(1) + '°';
+            rollValue.textContent = lastValues.roll.toFixed(1) + '°';
+        }
+        
+        function updateDeviceOrientation() {
+            const pitch = lastValues.pitch;
+            const yaw = lastValues.yaw;
+            const roll = lastValues.roll;
+            
+            deviceCube.style.transform = `
+                rotateX(${pitch}deg) 
+                rotateY(${yaw}deg) 
+                rotateZ(${roll}deg)
+            `;
+        }
+        
+        function resizeCanvas() {
+            canvas.width = canvas.clientWidth;
+            canvas.height = canvas.clientHeight;
+        }
+        
+        function timeToX(time) {
+            const timeWindow = parseFloat(timeWindowInput.value);
+            const start = currentTime - timeWindow;
+            return (time - start) / timeWindow * canvas.width;
+        }
+        
+        function degreesToY(degrees) {
+            const range = 360; // -180 to +180 degrees
+            return canvas.height * 0.9 - ((degrees + 180) / range) * canvas.height * 0.8;
+        }
+        
+        function drawGrid() {
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 1;
+            
+            // Horizontal grid lines (degree markers)
+            for (let deg = -180; deg <= 180; deg += 30) {
+                const y = degreesToY(deg);
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(canvas.width, y);
+                ctx.stroke();
+                
+                // Labels
+                ctx.fillStyle = '#666';
+                ctx.font = '12px Arial';
+                ctx.fillText(deg + '°', 5, y - 2);
+            }
+            
+            // Vertical grid lines (time markers)
+            const timeWindow = parseFloat(timeWindowInput.value);
+            for (let t = 0; t <= timeWindow; t += 1) {
+                const x = timeToX(currentTime - timeWindow + t);
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, canvas.height);
+                ctx.stroke();
+            }
+        }
+        
+        function drawOrientationData() {
+            const timeWindow = parseFloat(timeWindowInput.value);
+            const startTime = currentTime - timeWindow;
+            
+            // Draw data for each enabled axis
+            Object.keys(colors).forEach(axis => {
+                const checkbox = document.getElementById(axis + 'Enabled');
+                if (!checkbox.checked) return;
+                
+                ctx.strokeStyle = colors[axis];
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                
+                let firstPoint = true;
+                for (const [timestamp, data] of orientationData.entries()) {
+                    if (timestamp >= startTime && timestamp <= currentTime && data.axis === axis) {
+                        const x = timeToX(timestamp);
+                        const y = degreesToY(data.value);
+                        
+                        if (firstPoint) {
+                            ctx.moveTo(x, y);
+                            firstPoint = false;
+                        } else {
+                            ctx.lineTo(x, y);
+                        }
+                    }
+                }
+                ctx.stroke();
+                
+                // Draw current value indicator
+                const currentY = degreesToY(lastValues[axis]);
+                ctx.fillStyle = colors[axis];
+                ctx.beginPath();
+                ctx.arc(canvas.width - 10, currentY, 5, 0, 2 * Math.PI);
+                ctx.fill();
+            });
+        }
+        
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            drawGrid();
+            drawOrientationData();
+            
+            // Clean up old data
+            const timeWindow = parseFloat(timeWindowInput.value);
+            const cutoffTime = currentTime - timeWindow - 5; // Keep 5 extra seconds
+            for (const [timestamp] of orientationData.entries()) {
+                if (timestamp < cutoffTime) {
+                    orientationData.delete(timestamp);
+                }
+            }
+            
+            requestAnimationFrame(draw);
+        }
+        
+        // Event listeners
+        document.getElementById('clearData').addEventListener('click', () => {
+            orientationData.clear();
+            lastValues = { pitch: 0, yaw: 0, roll: 0 };
+            updateDisplays();
+            updateDeviceOrientation();
+        });
+        
+        document.getElementById('exportData').addEventListener('click', exportToCSV);
+        
+        document.getElementById('testMode').addEventListener('click', generateTestData);
+        
+        document.getElementById('toggleSidebar').addEventListener('click', () => {
+            document.body.classList.toggle('sidebar-hidden');
+        });
+        
+        window.addEventListener('resize', resizeCanvas);
+        
+        function exportToCSV() {
+            let csvContent = 'Timestamp,Axis,Degrees,RawMIDI\n';
+            
+            const sortedData = Array.from(orientationData.entries()).sort((a, b) => a[0] - b[0]);
+            
+            sortedData.forEach(([timestamp, data]) => {
+                csvContent += `${timestamp.toFixed(3)},${data.axis},${data.value.toFixed(2)},${data.rawValue}\n`;
+            });
+            
+            const blob = new Blob([csvContent], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'orientation_data.csv';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+        
+        function generateTestData() {
+            const testButton = document.getElementById('testMode');
+            testButton.textContent = 'Generating...';
+            
+            let counter = 0;
+            const interval = setInterval(() => {
+                currentTime = performance.now() / 1000;
+                
+                // Generate smooth test data
+                const time = counter * 0.1;
+                const pitch = Math.sin(time * 0.5) * 45;
+                const yaw = Math.cos(time * 0.3) * 90;
+                const roll = Math.sin(time * 0.7) * 30;
+                
+                // Add to data
+                orientationData.set(currentTime + Math.random() / 1000000, {
+                    axis: 'pitch',
+                    value: pitch,
+                    rawValue: Math.round((pitch / 2.83) + 63.5)
+                });
+                
+                orientationData.set(currentTime + Math.random() / 1000000, {
+                    axis: 'yaw', 
+                    value: yaw,
+                    rawValue: Math.round((yaw / 2.83) + 63.5)
+                });
+                
+                orientationData.set(currentTime + Math.random() / 1000000, {
+                    axis: 'roll',
+                    value: roll,
+                    rawValue: Math.round((roll / 2.83) + 63.5)
+                });
+                
+                lastValues = { pitch, yaw, roll };
+                updateDisplays();
+                updateDeviceOrientation();
+                
+                counter++;
+                if (counter > 100) {
+                    clearInterval(interval);
+                    testButton.textContent = 'Generate Test Data';
+                }
+            }, 50);
+        }
+        
+        // Initialize
+        resizeCanvas();
+        updateMIDIStatus();
+        draw();
+    </script>
+</body>
+</html>

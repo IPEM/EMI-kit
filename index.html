@@ -1,0 +1,317 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+		<title>Learn how to master body motion in music creation</title>
+
+		<link rel="stylesheet" href="dist/reset.css">
+		<link rel="stylesheet" href="dist/reveal.css">
+		<link rel="stylesheet" href="dist/theme/white.css">
+
+		<!-- Theme used for syntax highlighted code -->
+		<link rel="stylesheet" href="plugin/highlight/monokai.css">
+		<style>
+			.reveal section {
+			font-size: 80%;
+			}
+			.reveal section h2 {
+			text-align: center;
+			}
+		</style>
+	</head>
+	<body>
+		<div class="reveal">
+			<div class="slides">
+
+				<!-- Title Slide -->
+				<section>
+					<h2>Embodied music interfaces</h2>
+					<div style="margin-top: 2em;">
+						<p><strong>Bart Moens</strong><br>
+							<a href="mailto:bart.moens@ugent.be">bart.moens@ugent.be</a>
+						</p>
+						<p><strong>Joren Six</strong><br>
+							<a href="mailto:joren.six@ugent.be">joren.six@ugent.be</a>
+						</p>
+					</div>
+					<p style="margin-top: 2em; font-size: 0.8em;">MuTechLab Workshop<br>October 3, 2025</p>
+				</section>
+
+				<!-- Bart Introduction -->
+				<section>
+					<h2>Bart Moens</h2>
+					<p>Postdoctoral Researcher</p>
+					<ul>
+						<li>IPEM, Ghent University</li>
+						<li>XRHIL Core Facility</li>
+						<li>Music Technology Expert</li>
+					</ul>
+				</section>
+
+				<!-- Joren Introduction -->
+				<section>
+					<h2>Joren Six</h2>
+					<p>Postdoctoral Researcher</p>
+					<ul>
+						<li>Former IPEM member, Ghent University</li>
+						<li>Now at Ghent Centre for Digital Humanities (GhentCDH)</li>
+						<li>Music Technology Expert</li>
+					</ul>
+				</section>
+
+				<section>
+					<h2>Contents</h2>
+					<ul>
+						<li>09.30 - 10.00 Background, concept and demo</li>
+						<li>10.10 - 12.00 Hands-On</li>
+						<li>12.00 - 12.30 Discussion</li>
+					</ul>
+				</section>
+
+				<!-- IPEM Introduction -->
+				<section>
+					<h2>IPEM</h2>
+					<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: center;">
+						<div>
+							<p>Research on embodied music cognition</p>
+							<p>Focus: relationship between movement and music</p>
+						</div>
+						<div>
+							<img src="media/images/ipem.jpg" style="width: 100%;">
+						</div>
+					</div>
+				</section>
+
+
+
+				<!-- IPEM Research Focus -->
+				<section>
+					<h2>IPEM Research</h2>
+					<p>Studying music through embodied interaction</p>
+					<p><em>"The body in action"</em></p>
+					<p>Using XR technologies for immersive musical experiences</p>
+				</section>
+
+				<!-- Musical Interfaces -->
+				<section>
+					<h2>Improving Musical Interfaces</h2>
+					<p>One key research area at IPEM:</p>
+					<div class="r-fit-text">
+						<p><strong>Extending and improving musical interfaces</strong></p>
+					</div>
+				</section>
+
+				<!-- Bad Interface Example Complex interfaces difficult to control with mouse-->
+	
+				<section data-background-iframe="/media/iframes/complex-midi-interface.html" data-background-interactive>
+				</section>
+
+				<section>
+					<h2>Improving Musical Interfaces</h2>
+					<p>Some IPEM projects</p>
+				</section>
+
+				<!-- Music Paint Machine -->
+				<section>
+					<h2>The Music Paint Machine</h2>
+					<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: center;">
+						<div>
+							<p>Interactive musical painting interface</p>
+							<p>Body movement creates music and visuals</p>
+						</div>
+						<div>
+							<img src="media/images/music_paint_machine.png" style="width: 100%;">
+						</div>
+					</div>
+				</section>
+
+				<!-- SoundBikes -->
+				<section>
+					<h2>SoundBikes</h2>
+					<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: center;">
+						<div>
+							<p>Cycling synchronized with music</p>
+							<p>Participatory music-making installation</p>
+							<p><em>Movement entrainment research</em></p>
+						</div>
+						<div>
+							<img src="media/images/soundbike.jpg" style="width: 100%;">
+						</div>
+					</div>
+				</section>
+
+				<!-- DJogger -->
+				<section>
+					<h2>D-Jogger</h2>
+					<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: center;">
+						<div>
+							<p>Music player adapting to running rhythm</p>
+							<p>Alignment of music and movement</p>
+							<p><em>Entrainment strategies</em></p>
+						</div>
+						<div>
+							<img src="media/images/djogger.png" style="width: 100%;">
+						</div>
+					</div>
+				</section>
+
+				<!-- One Person Choir -->
+				<section>
+					<h2>One Person Choir</h2>
+					<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: center;">
+						<div>
+							
+							<p>Gestural control for singers</p>
+							<p>Real-time voice harmonization</p>
+							<p><em>Embodied music interface</em></p>
+						</div>
+						<div>
+							<img src="media/images/choir.png" style="width: 100%;">
+						</div>
+					</div>
+
+				</section>
+
+			<!-- Today's Session -->
+			<section>
+				<h2>Today's Session</h2>
+				<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: center;">
+					<div>
+						<p>Easy-to-use wearable for music interaction</p>
+						<p><strong>M5Stack IMU sensors</strong></p>
+						<p>Low-cost solution for body motion</p>
+					</div>
+					<div>
+						<img src="media/images/m5stack-m5stickc-plus2-watch-kit-esp32-development-board-assembled-1500x1500.jpg" style="width: 100%;">
+					</div>
+				</div>
+			</section>				<!-- Concept -->
+				<section>
+					<h2>Concept</h2>
+					<p>Measure sensor values</p>
+					<p>↓</p>
+					<p>Convert to MIDI controls</p>
+					<p>↓</p>
+					<p>Integrate in your practice</p>
+				</section>
+
+				<section>
+					<h2>Commercial Alternatives</h2>
+					<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: center;">
+						<div>
+							<p>- Expensive</p>
+							<p>+ Supported </p>
+							<p>- Not Modular or customizable</p>
+							<p>- Black box</p>
+						</div>
+						<div>
+							<img src="media/images/somi.png" style="width: 100%;">
+						</div>
+					</div>
+				</section>
+
+				<!-- Focus Areas -->
+				<section>
+					<h2>Focus</h2>
+					<ul>
+						<li><strong>Orientation</strong> - Pitch, yaw, roll</li>
+						<li><strong>Taps</strong> - Motion detection</li>
+					</ul>
+				</section>
+
+				<!-- Demo: Orientation -->
+
+
+				<section data-background-iframe="media/iframes/roll-slider.html" data-background-interactive>
+					<h2 style="height: 75vh;">Demo: Orientation Control</h2>
+				</section>
+
+				<!-- Orientation Explained -->
+				<section>
+					<h2>Understanding Orientation</h2>
+					<img src="/media/images/Flight_dynamics_with_text.svg" style="width: 70%;">
+				</section>
+
+				<section  data-background-iframe="/media/iframes/orientation.html" data-background-interactive>
+				</section>
+
+				<!-- Demo: Tap -->
+				<section data-background-iframe="media/iframes/midi-button.html" data-background-interactive>
+					<h2 style="height: 75vh;">Demo: Tap Detection</h2>
+				</section>
+
+				
+
+			
+				
+
+				<!-- Live Visualization -->
+	
+
+				<!-- Integration -->
+				<section>
+					<h2>Integration with DAW</h2>
+					<p>Works with any MIDI-compatible software</p>
+				</section>
+
+				<!-- Demo -->
+				<section>
+					<h2>Demo DAW integration</h2>
+				</section>
+
+				<!-- Device Operation -->
+				<section data-background-iframe="media/iframes/m5-lcd-emulator.html" data-background-interactive>
+					<h2 style="height: 85vh;">Device Operation</h2>
+				</section>
+				<!-- Hands-on -->
+				<section>
+					<h2>Hands-On Session</h2>
+					<p>Try the sensors yourself</p>
+					<p>Experiment with mappings</p>
+					<p>Create your own interactions</p>
+				</section>
+
+				<!-- Discussion -->
+				<section>
+					<h2>Discussion</h2>
+					<p>Questions & Ideas</p>
+					<p>Potential applications</p>
+					<p>Future directions</p>
+				</section>
+
+				<!-- References -->
+				<section>
+					<h2>References</h2>
+					<ul style="font-size: 0.7em;">
+						<li>Maes et al. (2011): The One-Person Choir</li>
+						<li>Maes et al. (2018): The SoundBike</li>
+						<li>Moens & Leman (2015): D-Jogger alignment strategies</li>
+					</ul>
+					<p style="font-size: 0.7em; margin-top: 1em;">
+						<a href="https://www.ugent.be/lw/kunstwetenschappen/ipem/en">www.ugent.be/lw/kunstwetenschappen/ipem/en</a><br>
+						<a href="https://xrhil.ugent.be">xrhil.ugent.be</a>
+					</p>
+				</section>
+
+			</div>
+		</div>
+
+		<script src="dist/reveal.js"></script>
+		<script src="plugin/notes/notes.js"></script>
+		<script src="plugin/markdown/markdown.js"></script>
+		<script src="plugin/highlight/highlight.js"></script>
+		<script>
+			// More info about initialization & config:
+			// - https://revealjs.com/initialization/
+			// - https://revealjs.com/config/
+			Reveal.initialize({
+				hash: true,
+
+				// Learn about plugins: https://revealjs.com/plugins/
+				plugins: [ RevealMarkdown, RevealHighlight, RevealNotes ]
+			});
+		</script>
+	</body>
+</html>

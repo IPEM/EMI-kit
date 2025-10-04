@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>M5 LCD Emulator (135x240)</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
+        
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #fff;
+            font-family: 'Share Tech Mono', monospace;
+            color: #fff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        
+        .emulator-container {
+            background-color: #333;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .lcd-screen {
+            width: 270px; /* 135 * 2 for better visibility */
+            height: 480px; /* 240 * 2 for better visibility */
+            background-color: #000;
+            border: 2px solid #555;
+            position: relative;
+            overflow: hidden;
+            font-family: 'Share Tech Mono', monospace;
+            color: #fff;
+            box-sizing: border-box;
+        }
+        
+        .screen-content {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            padding: 14px; /* 7px * 2 scale */
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .text-size-2 {
+            font-size: 24px; /* text size 2 scaled */
+            line-height: 28px;
+        }
+        
+        .text-size-3 {
+            font-size: 36px; /* text size 3 scaled */
+            line-height: 40px;
+        }
+        
+        .text-size-4 {
+            font-size: 48px; /* text size 4 scaled */
+            line-height: 52px;
+        }
+        
+        .center-text {
+            text-align: center;
+        }
+        
+        .left-text {
+            text-align: left;
+        }
+        
+        .horizontal-line {
+            border-top: 2px solid #fff;
+            margin: 10px 0;
+            width: 100%;
+        }
+        
+        .controls {
+            margin-top: 20px;
+            text-align: center;
+        }
+        
+        .mode-selector {
+            margin: 10px;
+            padding: 10px;
+            background-color: #444;
+            border: none;
+            color: #fff;
+            border-radius: 5px;
+            cursor: pointer;
+            font-family: 'Share Tech Mono', monospace;
+        }
+        
+        .mode-selector:hover {
+            background-color: #555;
+        }
+        
+        .mode-selector.active {
+            background-color: #007acc;
+        }
+        
+        .value-controls {
+            margin: 10px;
+        }
+        
+        .value-controls label {
+            display: block;
+            margin: 5px 0;
+        }
+        
+        .value-controls input {
+            width: 100px;
+            padding: 5px;
+            background-color: #333;
+            border: 1px solid #555;
+            color: #fff;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <div class="emulator-container">
+        <div class="lcd-screen" id="lcdScreen">
+            <div class="screen-content" id="screenContent">
+                <!-- Content will be dynamically generated here -->
+            </div>
+        </div>
+        
+        <div class="controls">
+            <h3>Application Mode</h3>
+            <button class="mode-selector" onclick="setMode('connecting')">Connecting</button>
+            <button class="mode-selector" onclick="setMode('calibrating')">Calibrating</button>
+            <button class="mode-selector" onclick="setMode('failed')">Connection Failed</button>
+            <button class="mode-selector active" onclick="setMode('running')">Running</button>
+            <button class="mode-selector" onclick="setMode('provisioning')">Provisioning</button>
+            
+            <h3>Stream Mode</h3>
+            <button class="mode-selector" onclick="setStreamMode('all')">All (Pitch+Jaw+Roll+Tap)</button>
+            <button class="mode-selector" onclick="setStreamMode('pitch')">Pitch Only</button>
+            <button class="mode-selector" onclick="setStreamMode('jaw')">Jaw Only</button>
+            <button class="mode-selector" onclick="setStreamMode('roll')">Roll Only</button>
+            <button class="mode-selector" onclick="setStreamMode('tap')">Tap Only</button>
+            <button class="mode-selector" onclick="setStreamMode('off')">Off</button>
+            
+        </div>
+    </div>
+
+    <script>
+        let currentMode = 'running';
+        let streamMode = 'all';
+        let receiverId = '06';
+        let pitchValue = 0;
+        let jawValue = 0;
+        let rollValue = 0;
+
+        function setMode(mode) {
+            currentMode = mode;
+            document.querySelectorAll('.mode-selector').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            updateDisplay();
+        }
+
+        function setStreamMode(mode) {
+            streamMode = mode;
+            updateDisplay();
+        }
+
+        function updateValues() {
+            // Values are now updated only by the auto-update function
+            updateDisplay();
+        }
+
+        function formatAngle(value) {
+            const rounded = Math.round(value);
+            return rounded >= 0 ? `+${rounded}°` : `${rounded}°`;
+        }
+
+        function createHorizontalLine() {
+            return '<div class="horizontal-line"></div>';
+        }
+
+        function updateDisplay() {
+            const screen = document.getElementById('screenContent');
+            let content = '';
+
+            switch(currentMode) {
+                case 'connecting':
+                    content = `
+                        <div class="text-size-2 center-text">Connecting</div>
+                        <div style="margin-top: 20px;"></div>
+                        <div class="text-size-2 center-text">to recvr</div>
+                        <div style="margin-top: 15px;"></div>
+                        <div class="text-size-4 center-text">${receiverId}</div>
+                    `;
+                    break;
+
+                case 'calibrating':
+                    content = `
+                        <div class="text-size-2 center-text">Paired to</div>
+                        <div class="text-size-2 center-text">Rec ${receiverId}</div>
+                        ${createHorizontalLine()}
+                        <div style="margin-top: 10px;"></div>
+                        <div class="text-size-2 center-text">CALIBRATING</div>
+                        <div style="margin-top: 20px;"></div>
+                        <div class="text-size-3 center-text">LAY</div>
+                        <div class="text-size-3 center-text">FLAT</div>
+                    `;
+                    break;
+
+                case 'failed':
+                    content = `
+                        <div class="text-size-2 center-text">Connection</div>
+                        <div style="margin-top: 20px;"></div>
+                        <div class="text-size-2 center-text">failed</div>
+                        <div style="margin-top: 15px;"></div>
+                        <div class="text-size-4 center-text">${receiverId}</div>
+                    `;
+                    break;
+
+                case 'provisioning':
+                    content = `
+                        <div class="text-size-2 center-text">Provisioning</div>
+                        <div class="text-size-2 center-text">WiFi</div>
+                        <div style="margin-top: 15px;"></div>
+                        <div class="text-size-2 center-text">${receiverId}</div>
+                    `;
+                    break;
+
+                case 'running':
+                    content = `
+                        <div class="text-size-2 center-text">Paired to</div>
+                        <div class="text-size-2 center-text">Rec ${receiverId}</div>
+                        <div class="text-size-2 center-text">Midi Ch 1</div>
+                        ${createHorizontalLine()}
+                        <div style="margin-top: 5px;"></div>
+                    `;
+
+                    // Add stream mode information - always show all lines to maintain consistent layout
+                    if (streamMode === 'off') {
+                        content += '<div class="text-size-2 left-text">Off</div>';
+                        content += '<div class="text-size-2 left-text" style="opacity: 0.05;">CC81 jaw</div>';
+                        content += '<div class="text-size-2 left-text" style="opacity: 0.05;">CC82 roll</div>';
+                        content += '<div class="text-size-2 left-text" style="opacity: 0.05;">C3 = tap</div>';
+                    } else {
+                        // Show pitch line
+                        if (streamMode === 'pitch' || streamMode === 'all') {
+                            content += '<div class="text-size-2 left-text">CC80 pitch</div>';
+                        } else {
+                            content += '<div class="text-size-2 left-text" style="opacity: 0.05;">CC80 pitch</div>';
+                        }
+                        
+                        // Show jaw line
+                        if (streamMode === 'jaw' || streamMode === 'all') {
+                            content += '<div class="text-size-2 left-text">CC81 jaw</div>';
+                        } else {
+                            content += '<div class="text-size-2 left-text" style="opacity: 0.05;">CC81 jaw</div>';
+                        }
+                        
+                        // Show roll line
+                        if (streamMode === 'roll' || streamMode === 'all') {
+                            content += '<div class="text-size-2 left-text">CC82 roll</div>';
+                        } else {
+                            content += '<div class="text-size-2 left-text" style="opacity: 0.05;">CC82 roll</div>';
+                        }
+                        
+                        // Show tap line
+                        if (streamMode === 'tap' || streamMode === 'all') {
+                            content += '<div class="text-size-2 left-text">C3 = tap</div>';
+                        } else {
+                            content += '<div class="text-size-2 left-text" style="opacity: 0.05;">C3 = tap</div>';
+                        }
+                    }
+
+                    content += createHorizontalLine();
+                    content += '<div style="margin-top: 10px;"></div>';
+
+                    // Show current value based on stream mode
+                    if (streamMode === 'pitch') {
+                        content += `<div class="text-size-4 center-text">${formatAngle(pitchValue)}</div>`;
+                    } else if (streamMode === 'jaw') {
+                        content += `<div class="text-size-4 center-text">${formatAngle(jawValue)}</div>`;
+                    } else if (streamMode === 'roll') {
+                        content += `<div class="text-size-4 center-text">${formatAngle(rollValue)}</div>`;
+                    } else if (streamMode === 'off') {
+                        content += '<div class="text-size-4 center-text" style="opacity: 0.5;">---</div>';
+                    }
+                    break;
+            }
+
+            screen.innerHTML = content;
+        }
+
+        // Auto-update values for demonstration
+        function autoUpdate() {
+            if (currentMode === 'running') {
+                // Simulate slight movement
+                pitchValue += (Math.random() - 0.5) * 2;
+                jawValue += (Math.random() - 0.5) * 2;
+                rollValue += (Math.random() - 0.5) * 2;
+                
+                // Keep within bounds and round
+                pitchValue = Math.round(Math.max(-90, Math.min(90, pitchValue)));
+                jawValue = Math.round(Math.max(-90, Math.min(90, jawValue)));
+                rollValue = Math.round(Math.max(-90, Math.min(90, rollValue)));
+                
+                updateDisplay();
+            }
+        }
+
+        // Initialize display
+        updateDisplay();
+
+        // Start auto-update (optional, for demonstration)
+        setInterval(autoUpdate, 100);
+    </script>
+</body>
+</html>
