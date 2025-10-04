@@ -1,0 +1,172 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="100%" height="100%" viewBox="5 90 1024 512">
+ <title>flight dynamics with text</title>
+ <desc>Roll, yaw and pitch axis definitions for an aircraft with flight control surfaces indicated, drawn by CMG Lee over http://commons.wikimedia.org/wiki/file:aircraft.svg .</desc>
+ <style type="text/css">
+svg { font-family:'Liberation Sans',Helvetica,Arial,sans-serif; font-weight:bold; font-size:72px; text-anchor:start; fill:#000; stroke:#000; stroke-linecap:round; }
+.yaw     { fill:#990; stroke:#cc0; }
+.roll    { fill:#c00; stroke:#f00; }
+.pitch   { fill:#60c; stroke:#90f; }
+.surface { fill-opacity:0.3; }
+<!-- Resize text for individual languages as per
+http://commons.wikimedia.org/w/index.php?title=Commons:Graphic_Lab/Illustration_workshop&diff=prev&oldid=1077344410
+-->
+text[systemLanguage="ar" i] { font-size:54px; }
+text[systemLanguage="fa" i] { font-size:50px; }
+text[systemLanguage="mk" i] { font-size:50px; }
+text[systemLanguage="ms" i] { font-size:54px; }
+text[systemLanguage="pl" i] { font-size:40px; }
+text[systemLanguage="pt" i] { font-size:60px; }
+text[systemLanguage="th" i] { font-size:42px; }
+ </style>
+ <defs>
+  <linearGradient id="grad_prop" x1="0%" y1="0%" x2="100%" y2="0%">
+   <stop offset="10%" stop-color="#fff"/>
+   <stop offset="50%" stop-color="#000"/>
+   <stop offset="90%" stop-color="#fff"/>
+  </linearGradient>
+  <g id="axis" transform="scale(-0.5,1)" fill="none">
+   <use xlink:href="#arrow" transform="translate(-16,0)"/>
+   <use xlink:href="#arrow" transform="translate(-16,0)" stroke="#000" stroke-opacity="0.3"/>
+   <use xlink:href="#arrow" transform="translate( -8,0)"/>
+   <use xlink:href="#arrow" transform="translate( -8,0)" stroke="#fff" stroke-opacity="0.5"/>
+   <path id="arrow" d="M 70,-70 A 100,100 0 1 0 100,0 m -30,25 l 30,-30 l 20,50" stroke-width="30"/>
+   <path id="chain" d="M -195,0 h 60 m 60,0 h 250" stroke-width="10" stroke-dasharray="50,20,5,20"/>
+   <use xlink:href="#chain" stroke="#000" stroke-opacity="0.5"/>
+  </g>
+  <path id="move" d="M 0,0 q 9,1 18,0 m -8,-5 l 8,5 l -8,6" fill="none" stroke-width="3"/>
+ </defs>
+ <circle cx="0" cy="0" r="99999" fill="#fff"/>
+ <g id="aircraft_svg" fill="#def" stroke="#000" stroke-width="3">
+  <path d="M 220,279 L 305,398 L 321,390 L 228,267 L 220,279 z"/>
+  <path d="M 663,314 L 623,299 C 623,299 639,291 657,291 C 674,291 690,293 690,293 L 720,301 L 663,314 z"/>
+  <path d="M 236,418 C 236,418 261,404 285,394 C 309,384 331,376 331,376 L 357,328 C 357,328 246,293 180,269 C 114,245 29,209 29,209 C 29,209 23,207 31,201 C 39,195 126,193 126,193 L 496,312 C 496,312 522,316 537,322 C 553,328 567,334 567,334 C 567,334 609,330 635,322 C 661,314 730,291 742,283 C 754,275 815,170 815,170 L 861,166 L 823,299 L 823,320 C 823,320 813,318 823,320 C 833,322 947,358 947,358 L 899,370 L 750,342 L 790,350 L 734,372 C 734,372 1026,432 1024,436 C 1022,440 1010,448 984,455 C 958,463 927,465 927,465 L 661,406 L 522,469 L 549,521 C 549,521 565,509 581,507 C 597,505 611,509 611,509 C 611,509 609,539 585,553 C 561,567 545,565 537,555 C 530,545 539,529 539,529 L 502,475 L 430,499 C 430,499 406,507 375,511 C 343,515 341,513 341,513 L 315,513 C 315,513 335,515 337,519 C 339,523 343,539 335,543 C 327,547 315,557 301,559 C 287,561 269,559 267,553 C 265,547 269,535 277,529 C 285,523 297,519 297,519 L 323,513 C 323,513 277,499 263,487 C 250,475 244,471 238,451 C 232,432 236,418 236,418 z"/>
+  <path d="M 458,360 L 661,406"/>
+  <path d="M 441,493 L 628,400 L 644,403 L 468,486 L 441,493 z"/>
+  <path d="M 758,377 L 578,340"/>
+  <g fill-opacity="0.3" fill="#000">
+   <path d="M 339,374 C 339,374 373,382 387,388 C 400,394 418,404 418,404 L 450,406 L 458,360 C 458,360 450,364 446,356 C 442,348 456,340 456,340 L 371,314 L 339,374 z"/>
+   <path d="M 464,402 L 470,364 L 528,376 L 528,392 L 464,402 z"/>
+   <path d="M 537,380 L 541,390 L 559,384 L 537,380 z"/>
+   <path d="M 240,424 C 240,424 246,422 265,430 C 285,438 293,446 293,446 C 293,446 303,453 293,453 C 283,453 283,457 265,450 C 248,442 240,440 240,432 C 240,424 240,424 240,424 z"/>
+   <path d="M 450,361 L 363,329 C 363,329 360,329 363,322 C 366,316 370,314 370,314 L 455,341 C 455,341 451,341 448,346 C 445,351 444,352 446,357 C 448,361 450,361 450,361 z" stroke="none"/>
+  </g>
+  <g fill-opacity="0.1" fill="#000" stroke="none">
+   <path d="M 311,505 C 311,505 324,507 326,500 C 329,493 348,491 348,491 C 348,491 367,493 433,478 C 499,464 656,394 652,407 L 520,469 C 498,473 438,493 397,508 C 361,510 346,511 329,512 C 312,509 311,505 311,505 z"/>
+   <path d="M 632,322 L 808,308 C 808,308 793,288 766,288 C 739,288 733,286 706,301 C 679,315 632,322 632,322 z"/>
+   <path d="M 748,286 L 819,173 L 854,170 C 850,178 839,178 822,192 C 798,224 748,286 748,286 z"/>
+   <path d="M 421,410 L 309,454 C 309,454 319,461 319,478 C 319,495 328,498 328,498 C 328,498 321,471 326,464 C 331,456 421,410 421,410 z"/>
+   <path d="M 757,338 L 817,322 L 883,342 C 883,342 840,329 820,330 C 799,331 757,338 757,338 z"/>
+   <path d="M 922,413 C 922,413 601,353 521,325 C 442,298 157,205 157,205 C 157,205 420,299 534,335 C 644,369 922,413 922,413 z"/>
+   <path d="M 927,460 C 927,460 927,454 937,448 C 947,442 952,437 974,436 C 996,434 1008,436 1008,436 C 1008,436 992,436 969,440 C 946,445 938,449 935,454 C 931,459 927,460 927,460 z"/>
+   <path d="M 280,555 C 296,550 316,541 325,536 C 332,529 328,518 333,519 C 339,521 339,534 336,537 C 333,543 310,556 299,556 C 286,556 283,558 280,555 z"/>
+   <path d="M 542,530 C 542,530 543,539 547,539 C 551,539 559,542 575,536 C 590,531 605,517 605,517 C 605,517 603,528 601,533 C 599,539 586,551 580,554 C 573,558 562,566 550,561 C 538,556 536,557 536,549 C 536,542 542,530 542,530 z"/>
+   <path d="M 542,530 L 550,524 C 550,524 562,515 562,518 C 562,521 558,527 553,529 C 549,531 542,530 542,530 z"/>
+   <path d="M 781,351 L 728,372 L 711,369 C 711,369 762,351 770,350 C 779,349 781,351 781,351 z"/>
+   <path d="M 614,331 L 818,317 L 799,308 C 799,308 780,298 716,310 C 653,321 614,331 614,331 z"/>
+  </g>
+  <circle transform="translate(268,438) rotate(-15) scale(0.7,1) rotate(45)" r="125" fill="url(#grad_prop)" opacity="0.3"/>
+  <path d="M 261,424 C 261,424 272,432 272,444 C 272,455 261,458 261,458 C 261,458 244,454 239,451 C 235,447 232,440 239,435 C 245,429 261,424 261,424 z" fill="#cde"/>
+ </g>
+ <g fill="none" stroke="#666" stroke-width="9">
+  <path d="M 412,365 v 13 l 16,7 v -13" stroke-linejoin="round"/>
+  <path d="M 400,450 l 6,12 m 12,-6 l 6,12" stroke-opacity="0.5"/>
+ </g>
+ <g class="yaw">
+  <path class="surface" d="M 860,169 l -20,1 l -40,137 h 20"/>
+  <use xlink:href="#axis" transform="translate(440,210) rotate( 90)"/>
+  <use xlink:href="#move" transform="translate(858,162) rotate(200)"/>
+  <use xlink:href="#move" transform="translate(400,450) rotate(150)"/>
+  <use xlink:href="#move" transform="translate(420,455) rotate(330)"/>
+ </g>
+ <g class="roll">
+  <path class="surface" d="M 140,198 h -40 l 200,62 h 30 M 800,387 l -30,5 l 210,42 h 35"/>
+  <use xlink:href="#axis" transform="translate(260,440) rotate(-15) scale(1.4,-1)"/>
+  <use xlink:href="#move" transform="translate(210,220) rotate(270)"/>
+  <use xlink:href="#move" transform="translate(890,410) rotate( 90)"/>
+  <use xlink:href="#move" transform="translate(432,363) rotate(200)"/>
+  <use xlink:href="#move" transform="translate(412,392) rotate( 20)"/>
+ </g>
+ <g class="pitch">
+  <path class="surface" d="M 820,320 l -25,9 l 125,33 l 20,-5"/>
+  <use xlink:href="#axis" transform="translate(675,380) rotate(193)"/>
+  <use xlink:href="#move" transform="translate(727,286) rotate(270)"/>
+  <use xlink:href="#move" transform="translate(880,335) rotate(270)"/>
+  <use xlink:href="#move" transform="translate(430,380) rotate(345)"/>
+ </g>
+ <g transform="translate(520,150)" class="yaw">
+  <switch>
+   <text systemLanguage="ar" id="y-ar"><tspan id="_y-ar">الانعراج</tspan></text>
+   <text systemLanguage="de" id="y-de"><tspan id="_y-de">Gier</tspan></text>
+   <text systemLanguage="es" id="y-es"><tspan id="_y-es">Guiñada</tspan></text>
+   <text systemLanguage="fa" id="y-fa"><tspan id="_y-fa">گردش</tspan></text>
+   <text systemLanguage="fr" id="y-fr"><tspan id="_y-fr">Lacet</tspan></text>
+   <text systemLanguage="gl" id="y-gl"><tspan id="_y-gl">Guinada</tspan></text>
+   <text systemLanguage="he" id="y-he"><tspan id="_y-he">סבסוב</tspan></text>
+   <text systemLanguage="hi" id="y-hi"><tspan id="_y-hi">या</tspan></text>
+   <text systemLanguage="it" id="y-it"><tspan id="_y-it">Imbardata</tspan></text>
+   <text systemLanguage="ja" id="y-ja"><tspan id="_y-ja">ヨーイ</tspan></text>
+   <text systemLanguage="mk" id="y-mk"><tspan id="_y-mk">вертикалната</tspan></text>
+   <text systemLanguage="ms" id="y-ms"><tspan id="_y-ms">Mengoleng</tspan></text>
+   <text systemLanguage="pl" id="y-pl"><tspan id="_y-pl">Odchylenie</tspan></text>
+   <text systemLanguage="pt" id="y-pt"><tspan id="_y-pt">Leme de direção</tspan></text>
+   <text systemLanguage="ro" id="y-ro"><tspan id="_y-ro">Girație</tspan></text>
+   <text systemLanguage="ru" id="y-ru"><tspan id="_y-ru">Рысканье</tspan></text>
+   <text systemLanguage="th" id="y-th"><tspan id="_y-th">แกนตั้ง</tspan></text>
+   <text systemLanguage="uk" id="y-uk"><tspan id="_y-uk">Рискання</tspan></text>
+   <text systemLanguage="zh" id="y-zh"><tspan id="_y-zh">偏航</tspan></text>
+   <text systemLanguage="en" id="y-en"><tspan id="_y-en">Yaw</tspan></text>
+   <text id="y"><tspan id="_y">Yaw</tspan></text>
+  </switch>
+ </g>
+ <g transform="translate(130,590)" class="roll" text-anchor="middle">
+  <switch>
+   <text systemLanguage="ar" id="r-ar"><tspan id="_r-ar">العطوف</tspan></text>
+   <text systemLanguage="de" id="r-de"><tspan id="_r-de">Roll</tspan></text>
+   <text systemLanguage="es" id="r-es"><tspan id="_r-es">Alabeo</tspan></text>
+   <text systemLanguage="fa" id="r-fa"><tspan id="_r-fa">غلت زدن</tspan></text>
+   <text systemLanguage="fr" id="r-fr"><tspan id="_r-fr">Roulis</tspan></text>
+   <text systemLanguage="gl" id="r-gl"><tspan id="_r-gl">Rolo</tspan></text>
+   <text systemLanguage="he" id="r-he"><tspan id="_r-he">גלגול</tspan></text>
+   <text systemLanguage="hi" id="r-hi"><tspan id="_r-hi">रोल</tspan></text>
+   <text systemLanguage="it" id="r-it"><tspan id="_r-it">Rollio</tspan></text>
+   <text systemLanguage="ja" id="r-ja"><tspan id="_r-ja">ロール</tspan></text>
+   <text systemLanguage="mk" id="r-mk"><tspan id="_r-mk">надолжна</tspan></text>
+   <text systemLanguage="ms" id="r-ms"><tspan id="_r-ms">Bergolek</tspan></text>
+   <text systemLanguage="pl" id="r-pl"><tspan id="_r-pl">Przechylenie</tspan></text>
+   <text systemLanguage="pt" id="r-pt"><tspan id="_r-pt">Rolagem</tspan></text>
+   <text systemLanguage="ro" id="r-ro"><tspan id="_r-ro">Ruliu</tspan></text>
+   <text systemLanguage="ru" id="r-ru"><tspan id="_r-ru">Крен</tspan></text>
+   <text systemLanguage="th" id="r-th"><tspan id="_r-th">แกนตามยาว</tspan></text>
+   <text systemLanguage="uk" id="r-uk"><tspan id="_r-uk">Крен</tspan></text>
+   <text systemLanguage="zh" id="r-zh"><tspan id="_r-zh">横滚</tspan></text>
+   <text systemLanguage="en" id="r-en"><tspan id="_r-en">Roll</tspan></text>
+   <text id="r"><tspan id="_r">Roll</tspan></text>
+  </switch>
+ </g>
+ <g transform="translate(620,580)" class="pitch">
+  <switch>
+   <text systemLanguage="ar" id="p-ar"><tspan id="_p-ar">الخطران</tspan></text>
+   <text systemLanguage="de" id="p-de"><tspan id="_p-de">Nick</tspan></text>
+   <text systemLanguage="es" id="p-es"><tspan id="_p-es">Cabeceo</tspan></text>
+   <text systemLanguage="fa" id="p-fa"><tspan id="_p-fa">گشتاور</tspan></text>
+   <text systemLanguage="fr" id="p-fr"><tspan id="_p-fr">Tangage</tspan></text>
+   <text systemLanguage="gl" id="p-gl"><tspan id="_p-gl">Arfaxe</tspan></text>
+   <text systemLanguage="he" id="p-he"><tspan id="_p-he">עלרוד</tspan></text>
+   <text systemLanguage="hi" id="p-hi"><tspan id="_p-hi">पिच</tspan></text>
+   <text systemLanguage="it" id="p-it"><tspan id="_p-it">Beccheggio</tspan></text>
+   <text systemLanguage="ja" id="p-ja"><tspan id="_p-ja">ピッチ</tspan></text>
+   <text systemLanguage="mk" id="p-mk"><tspan id="_p-mk">напречна</tspan></text>
+   <text systemLanguage="ms" id="p-ms"><tspan id="_p-ms">Membaling</tspan></text>
+   <text systemLanguage="pl" id="p-pl"><tspan id="_p-pl">Pochylenie</tspan></text>
+   <text systemLanguage="pt" id="p-pt"><tspan id="_p-pt">Arfagem</tspan></text>
+   <text systemLanguage="ro" id="p-ro"><tspan id="_p-ro">Tangaj</tspan></text>
+   <text systemLanguage="ru" id="p-ru"><tspan id="_p-ru">Тангаж</tspan></text>
+   <text systemLanguage="th" id="p-th"><tspan id="_p-th">แกนตามขวาง</tspan></text>
+   <text systemLanguage="uk" id="p-uk"><tspan id="_p-uk">Танга́ж</tspan></text>
+   <text systemLanguage="zh" id="p-zh"><tspan id="_p-zh">俯仰</tspan></text>
+   <text systemLanguage="en" id="p-en"><tspan id="_p-en">Pitch</tspan></text>
+   <text id="p"><tspan id="_p">Pitch</tspan></text>
+  </switch>
+ </g>
+</svg>

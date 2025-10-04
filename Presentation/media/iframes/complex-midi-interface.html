@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Complex MIDI Controller Interface</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: #1a1a1a;
+            color: #00ff00;
+            overflow-x: hidden;
+            cursor: crosshair;
+        }
+
+        .interface-container {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            padding: 20px;
+            max-width: 1800px;
+            margin: 0 auto;
+        }
+
+        .control-panel {
+            background: linear-gradient(145deg, #2a2a2a, #1a1a1a);
+            border: 2px solid #333;
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+
+        .panel-header {
+            text-align: center;
+            margin-bottom: 15px;
+            font-size: 11px;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        /* Sliders */
+        .slider-group {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+
+        .slider-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .slider-vertical {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 8px;
+            height: 120px;
+            background: #333;
+            outline: none;
+            border-radius: 4px;
+            writing-mode: bt-lr;
+            -webkit-writing-mode: bt-lr;
+            transform: rotate(180deg);
+        }
+
+        .slider-vertical::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #00ff00;
+            cursor: pointer;
+            border-radius: 50%;
+            box-shadow: 0 0 10px rgba(0,255,0,0.5);
+        }
+
+        .slider-vertical::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            background: #00ff00;
+            cursor: pointer;
+            border-radius: 50%;
+            box-shadow: 0 0 10px rgba(0,255,0,0.5);
+            border: none;
+        }
+
+        .slider-label {
+            font-size: 9px;
+            margin-top: 5px;
+            color: #666;
+        }
+
+        .slider-value {
+            font-size: 10px;
+            color: #00ff00;
+            font-weight: bold;
+        }
+
+        /* Knobs */
+        .knobs-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .knob-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .knob {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%, #3a3a3a, #1a1a1a);
+            border: 3px solid #333;
+            position: relative;
+            cursor: grab;
+            box-shadow: inset 0 2px 10px rgba(0,0,0,0.8), 0 2px 5px rgba(0,0,0,0.5);
+        }
+
+        .knob:active {
+            cursor: grabbing;
+        }
+
+        .knob-indicator {
+            position: absolute;
+            width: 3px;
+            height: 20px;
+            background: #ff0000;
+            top: 5px;
+            left: 50%;
+            transform-origin: center 20px;
+            border-radius: 2px;
+            box-shadow: 0 0 5px rgba(255,0,0,0.8);
+        }
+
+        .knob-label {
+            font-size: 8px;
+            margin-top: 5px;
+            color: #666;
+            text-align: center;
+        }
+
+        .knob-value {
+            font-size: 9px;
+            color: #ff0000;
+        }
+
+        /* Pads */
+        .pads-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+
+        .pad {
+            aspect-ratio: 1;
+            background: linear-gradient(145deg, #2a2a2a, #1a1a1a);
+            border: 2px solid #333;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.05s;
+            position: relative;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+        }
+
+        .pad:hover {
+            border-color: #555;
+        }
+
+        .pad.active {
+            background: linear-gradient(145deg, #ff6600, #ff3300);
+            border-color: #ff6600;
+            box-shadow: 0 0 20px rgba(255,102,0,0.8), inset 0 2px 10px rgba(255,255,255,0.3);
+        }
+
+        .pad-label {
+            position: absolute;
+            bottom: 2px;
+            right: 2px;
+            font-size: 8px;
+            color: #666;
+        }
+
+        /* XY Pad */
+        .xy-pad {
+            width: 100%;
+            height: 200px;
+            background: #1a1a1a;
+            border: 2px solid #333;
+            border-radius: 4px;
+            position: relative;
+            cursor: crosshair;
+            margin-bottom: 15px;
+        }
+
+        .xy-cursor {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background: #00ffff;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 20px rgba(0,255,255,0.8);
+            pointer-events: none;
+        }
+
+        .xy-label {
+            position: absolute;
+            font-size: 9px;
+            color: #666;
+        }
+
+        .xy-label.x {
+            bottom: 5px;
+            right: 5px;
+        }
+
+        .xy-label.y {
+            top: 5px;
+            left: 5px;
+        }
+
+        /* Buttons */
+        .buttons-row {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 10px;
+        }
+
+        .button {
+            flex: 1;
+            padding: 8px;
+            background: linear-gradient(145deg, #2a2a2a, #1a1a1a);
+            border: 2px solid #333;
+            color: #666;
+            font-size: 10px;
+            cursor: pointer;
+            border-radius: 3px;
+            transition: all 0.1s;
+            text-align: center;
+        }
+
+        .button:hover {
+            border-color: #555;
+        }
+
+        .button.active {
+            background: linear-gradient(145deg, #0066ff, #0044cc);
+            border-color: #0066ff;
+            color: #fff;
+            box-shadow: 0 0 15px rgba(0,102,255,0.6);
+        }
+
+        /* LED indicators */
+        .led-row {
+            display: flex;
+            gap: 5px;
+            justify-content: center;
+            margin-bottom: 10px;
+        }
+
+        .led {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #333;
+            border: 1px solid #222;
+        }
+
+        .led.active {
+            background: #ff0000;
+            box-shadow: 0 0 10px rgba(255,0,0,0.8);
+        }
+
+        /* Header */
+        .main-header {
+            background: linear-gradient(145deg, #333, #1a1a1a);
+            padding: 20px;
+            text-align: center;
+            border-bottom: 3px solid #00ff00;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.8);
+            margin-bottom: 20px;
+        }
+
+        .main-header h1 {
+            font-size: 28px;
+            color: #00ff00;
+            text-shadow: 0 0 20px rgba(0,255,0,0.5);
+            margin-bottom: 10px;
+        }
+
+        .status-bar {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            font-size: 12px;
+            color: #888;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Scrolling text */
+        .lcd-display {
+            background: #0a3a0a;
+            color: #00ff00;
+            padding: 10px;
+            border: 2px solid #333;
+            border-radius: 3px;
+            font-size: 11px;
+            text-align: center;
+            margin-bottom: 15px;
+            box-shadow: inset 0 2px 10px rgba(0,0,0,0.8);
+            overflow: hidden;
+            white-space: nowrap;
+        }
+
+        /* Transport controls */
+        .transport {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 15px;
+        }
+
+        .transport-btn {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(145deg, #2a2a2a, #1a1a1a);
+            border: 2px solid #333;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #666;
+            font-size: 16px;
+            transition: all 0.1s;
+        }
+
+        .transport-btn:hover {
+            border-color: #555;
+        }
+
+        .transport-btn.active {
+            background: linear-gradient(145deg, #ff0000, #cc0000);
+            border-color: #ff0000;
+            color: #fff;
+            box-shadow: 0 0 15px rgba(255,0,0,0.6);
+        }
+
+        /* Faders */
+        .fader-section {
+            display: flex;
+            gap: 15px;
+            padding: 15px;
+            background: linear-gradient(145deg, #2a2a2a, #1a1a1a);
+            border: 2px solid #333;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .fader-channel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .fader-track {
+            height: 200px;
+            width: 40px;
+            background: #1a1a1a;
+            border: 2px solid #333;
+            border-radius: 4px;
+            position: relative;
+            margin-bottom: 10px;
+        }
+
+        .fader-handle {
+            width: 100%;
+            height: 20px;
+            background: linear-gradient(145deg, #4a4a4a, #2a2a2a);
+            border: 2px solid #555;
+            border-radius: 3px;
+            position: absolute;
+            cursor: ns-resize;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+        }
+
+        .fader-label {
+            font-size: 10px;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .fader-value {
+            font-size: 11px;
+            color: #00ff00;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="main-header">
+        <h1>◆ ULTRA-COMPLEX MIDI CONTROLLER ◆</h1>
+        <div class="status-bar">
+            <div class="status-item">
+                <div class="led active"></div>
+                <span>MIDI IN</span>
+            </div>
+            <div class="status-item">
+                <div class="led active"></div>
+                <span>SYNC</span>
+            </div>
+            <div class="status-item">
+                <span>CH: ALL</span>
+            </div>
+            <div class="status-item">
+                <span>BPM: 120.00</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Faders -->
+    <div class="fader-section" style="max-width: 1800px; margin: 0 auto 20px;">
+        <div class="fader-channel">
+            <div class="fader-label">CH1</div>
+            <div class="fader-track">
+                <div class="fader-handle" data-channel="1" style="top: 90px;"></div>
+            </div>
+            <div class="fader-value">64</div>
+        </div>
+        <div class="fader-channel">
+            <div class="fader-label">CH2</div>
+            <div class="fader-track">
+                <div class="fader-handle" data-channel="2" style="top: 90px;"></div>
+            </div>
+            <div class="fader-value">64</div>
+        </div>
+        <div class="fader-channel">
+            <div class="fader-label">CH3</div>
+            <div class="fader-track">
+                <div class="fader-handle" data-channel="3" style="top: 90px;"></div>
+            </div>
+            <div class="fader-value">64</div>
+        </div>
+        <div class="fader-channel">
+            <div class="fader-label">CH4</div>
+            <div class="fader-track">
+                <div class="fader-handle" data-channel="4" style="top: 90px;"></div>
+            </div>
+            <div class="fader-value">64</div>
+        </div>
+        <div class="fader-channel">
+            <div class="fader-label">CH5</div>
+            <div class="fader-track">
+                <div class="fader-handle" data-channel="5" style="top: 90px;"></div>
+            </div>
+            <div class="fader-value">64</div>
+        </div>
+        <div class="fader-channel">
+            <div class="fader-label">CH6</div>
+            <div class="fader-track">
+                <div class="fader-handle" data-channel="6" style="top: 90px;"></div>
+            </div>
+            <div class="fader-value">64</div>
+        </div>
+        <div class="fader-channel">
+            <div class="fader-label">CH7</div>
+            <div class="fader-track">
+                <div class="fader-handle" data-channel="7" style="top: 90px;"></div>
+            </div>
+            <div class="fader-value">64</div>
+        </div>
+        <div class="fader-channel">
+            <div class="fader-label">CH8</div>
+            <div class="fader-track">
+                <div class="fader-handle" data-channel="8" style="top: 90px;"></div>
+            </div>
+            <div class="fader-value">64</div>
+        </div>
+    </div>
+
+    <div class="interface-container">
+        <!-- Panel 1: Vertical Sliders -->
+        <div class="control-panel">
+            <div class="panel-header">MODULATION MATRIX</div>
+            <div class="lcd-display">MOD-A: LFO1→FILT | MOD-B: ENV2→AMP</div>
+            <div class="slider-group">
+                <div class="slider-container">
+                    <input type="range" class="slider-vertical" min="0" max="127" value="64">
+                    <div class="slider-label">LFO1</div>
+                    <div class="slider-value">64</div>
+                </div>
+                <div class="slider-container">
+                    <input type="range" class="slider-vertical" min="0" max="127" value="80">
+                    <div class="slider-label">LFO2</div>
+                    <div class="slider-value">80</div>
+                </div>
+                <div class="slider-container">
+                    <input type="range" class="slider-vertical" min="0" max="127" value="45">
+                    <div class="slider-label">ENV1</div>
+                    <div class="slider-value">45</div>
+                </div>
+                <div class="slider-container">
+                    <input type="range" class="slider-vertical" min="0" max="127" value="92">
+                    <div class="slider-label">ENV2</div>
+                    <div class="slider-value">92</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Panel 2: Knobs -->
+        <div class="control-panel">
+            <div class="panel-header">FILTER SECTION</div>
+            <div class="lcd-display">CUTOFF: 2.4kHz | RES: 45% | TYPE: LP24</div>
+            <div class="knobs-grid">
+                <div class="knob-container">
+                    <div class="knob" data-knob="cutoff">
+                        <div class="knob-indicator"></div>
+                    </div>
+                    <div class="knob-label">CUTOFF<br><span class="knob-value">64</span></div>
+                </div>
+                <div class="knob-container">
+                    <div class="knob" data-knob="resonance">
+                        <div class="knob-indicator"></div>
+                    </div>
+                    <div class="knob-label">RES<br><span class="knob-value">64</span></div>
+                </div>
+                <div class="knob-container">
+                    <div class="knob" data-knob="drive">
+                        <div class="knob-indicator"></div>
+                    </div>
+                    <div class="knob-label">DRIVE<br><span class="knob-value">64</span></div>
+                </div>
+                <div class="knob-container">
+                    <div class="knob" data-knob="attack">
+                        <div class="knob-indicator"></div>
+                    </div>
+                    <div class="knob-label">ATTACK<br><span class="knob-value">64</span></div>
+                </div>
+                <div class="knob-container">
+                    <div class="knob" data-knob="decay">
+                        <div class="knob-indicator"></div>
+                    </div>
+                    <div class="knob-label">DECAY<br><span class="knob-value">64</span></div>
+                </div>
+                <div class="knob-container">
+                    <div class="knob" data-knob="sustain">
+                        <div class="knob-indicator"></div>
+                    </div>
+                    <div class="knob-label">SUSTAIN<br><span class="knob-value">64</span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Panel 3: Drum Pads -->
+        <div class="control-panel">
+            <div class="panel-header">DRUM SEQUENCER</div>
+            <div class="lcd-display">PATTERN: A1 | STEP: 1/16 | VEL: 100</div>
+            <div class="pads-grid">
+                <div class="pad"><div class="pad-label">C1</div></div>
+                <div class="pad"><div class="pad-label">C#1</div></div>
+                <div class="pad"><div class="pad-label">D1</div></div>
+                <div class="pad"><div class="pad-label">D#1</div></div>
+                <div class="pad"><div class="pad-label">E1</div></div>
+                <div class="pad"><div class="pad-label">F1</div></div>
+                <div class="pad"><div class="pad-label">F#1</div></div>
+                <div class="pad"><div class="pad-label">G1</div></div>
+                <div class="pad"><div class="pad-label">G#1</div></div>
+                <div class="pad"><div class="pad-label">A1</div></div>
+                <div class="pad"><div class="pad-label">A#1</div></div>
+                <div class="pad"><div class="pad-label">B1</div></div>
+            </div>
+            <div class="led-row">
+                <div class="led"></div>
+                <div class="led active"></div>
+                <div class="led"></div>
+                <div class="led"></div>
+                <div class="led active"></div>
+                <div class="led"></div>
+                <div class="led"></div>
+                <div class="led"></div>
+            </div>
+        </div>
+
+        <!-- Panel 4: XY Pad -->
+        <div class="control-panel">
+            <div class="panel-header">XY CONTROLLER</div>
+            <div class="lcd-display">X: 64 | Y: 64 | MODE: TOUCHPAD</div>
+            <div class="xy-pad">
+                <div class="xy-cursor" style="left: 50%; top: 50%;"></div>
+                <div class="xy-label x">CC74: X-AXIS</div>
+                <div class="xy-label y">CC75: Y-AXIS</div>
+            </div>
+            <div class="transport">
+                <div class="transport-btn">◄◄</div>
+                <div class="transport-btn">◄</div>
+                <div class="transport-btn">●</div>
+                <div class="transport-btn">►</div>
+                <div class="transport-btn">■</div>
+            </div>
+        </div>
+
+        <!-- Panel 5: More Sliders -->
+        <div class="control-panel">
+            <div class="panel-header">OSCILLATOR BANK</div>
+            <div class="lcd-display">OSC1: SAW | OSC2: SQR | DETUNE: +7</div>
+            <div class="slider-group">
+                <div class="slider-container">
+                    <input type="range" class="slider-vertical" min="0" max="127" value="100">
+                    <div class="slider-label">OSC1</div>
+                    <div class="slider-value">100</div>
+                </div>
+                <div class="slider-container">
+                    <input type="range" class="slider-vertical" min="0" max="127" value="85">
+                    <div class="slider-label">OSC2</div>
+                    <div class="slider-value">85</div>
+                </div>
+                <div class="slider-container">
+                    <input type="range" class="slider-vertical" min="0" max="127" value="20">
+                    <div class="slider-label">NOISE</div>
+                    <div class="slider-value">20</div>
+                </div>
+                <div class="slider-container">
+                    <input type="range" class="slider-vertical" min="0" max="127" value="64">
+                    <div class="slider-label">MIX</div>
+                    <div class="slider-value">64</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Panel 6: Effects -->
+        <div class="control-panel">
+            <div class="panel-header">FX PROCESSOR</div>
+            <div class="lcd-display">REVERB: HALL | DELAY: 1/8 | DRY/WET: 40%</div>
+            <div class="knobs-grid">
+                <div class="knob-container">
+                    <div class="knob" data-knob="reverb">
+                        <div class="knob-indicator"></div>
+                    </div>
+                    <div class="knob-label">REVERB<br><span class="knob-value">64</span></div>
+                </div>
+                <div class="knob-container">
+                    <div class="knob" data-knob="delay">
+                        <div class="knob-indicator"></div>
+                    </div>
+                    <div class="knob-label">DELAY<br><span class="knob-value">64</span></div>
+                </div>
+                <div class="knob-container">
+                    <div class="knob" data-knob="chorus">
+                        <div class="knob-indicator"></div>
+                    </div>
+                    <div class="knob-label">CHORUS<br><span class="knob-value">64</span></div>
+                </div>
+                <div class="knob-container">
+                    <div class="knob" data-knob="distortion">
+                        <div class="knob-indicator"></div>
+                    </div>
+                    <div class="knob-label">DIST<br><span class="knob-value">64</span></div>
+                </div>
+                <div class="knob-container">
+                    <div class="knob" data-knob="phaser">
+                        <div class="knob-indicator"></div>
+                    </div>
+                    <div class="knob-label">PHASER<br><span class="knob-value">64</span></div>
+                </div>
+                <div class="knob-container">
+                    <div class="knob" data-knob="flanger">
+                        <div class="knob-indicator"></div>
+                    </div>
+                    <div class="knob-label">FLANGER<br><span class="knob-value">64</span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Panel 7: More Pads -->
+        <div class="control-panel">
+            <div class="panel-header">PERFORMANCE PADS</div>
+            <div class="lcd-display">BANK: A | VELOCITY: SENSITIVE | AFTERTOUCH: ON</div>
+            <div class="pads-grid">
+                <div class="pad"><div class="pad-label">PAD1</div></div>
+                <div class="pad"><div class="pad-label">PAD2</div></div>
+                <div class="pad"><div class="pad-label">PAD3</div></div>
+                <div class="pad"><div class="pad-label">PAD4</div></div>
+                <div class="pad"><div class="pad-label">PAD5</div></div>
+                <div class="pad"><div class="pad-label">PAD6</div></div>
+                <div class="pad"><div class="pad-label">PAD7</div></div>
+                <div class="pad"><div class="pad-label">PAD8</div></div>
+                <div class="pad"><div class="pad-label">PAD9</div></div>
+                <div class="pad"><div class="pad-label">PAD10</div></div>
+                <div class="pad"><div class="pad-label">PAD11</div></div>
+                <div class="pad"><div class="pad-label">PAD12</div></div>
+                <div class="pad"><div class="pad-label">PAD13</div></div>
+                <div class="pad"><div class="pad-label">PAD14</div></div>
+                <div class="pad"><div class="pad-label">PAD15</div></div>
+                <div class="pad"><div class="pad-label">PAD16</div></div>
+            </div>
+        </div>
+
+        <!-- Panel 8: Buttons & LEDs -->
+        <div class="control-panel">
+            <div class="panel-header">CONTROL MATRIX</div>
+            <div class="lcd-display">SCENE: 1 | MACRO: ASSIGNED | MIDI: CH1</div>
+            <div class="buttons-row">
+                <div class="button">MUTE</div>
+                <div class="button">SOLO</div>
+                <div class="button">ARM</div>
+            </div>
+            <div class="buttons-row">
+                <div class="button">A</div>
+                <div class="button">B</div>
+                <div class="button">C</div>
+            </div>
+            <div class="buttons-row">
+                <div class="button">BANK↓</div>
+                <div class="button">BANK↑</div>
+            </div>
+            <div class="led-row">
+                <div class="led active"></div>
+                <div class="led"></div>
+                <div class="led active"></div>
+                <div class="led active"></div>
+                <div class="led"></div>
+                <div class="led active"></div>
+                <div class="led"></div>
+                <div class="led"></div>
+            </div>
+            <div class="knobs-grid" style="margin-top: 15px;">
+                <div class="knob-container">
+                    <div class="knob" data-knob="macro1">
+                        <div class="knob-indicator"></div>
+                    </div>
+                    <div class="knob-label">MACRO1<br><span class="knob-value">64</span></div>
+                </div>
+                <div class="knob-container">
+                    <div class="knob" data-knob="macro2">
+                        <div class="knob-indicator"></div>
+                    </div>
+                    <div class="knob-label">MACRO2<br><span class="knob-value">64</span></div>
+                </div>
+                <div class="knob-container">
+                    <div class="knob" data-knob="macro3">
+                        <div class="knob-indicator"></div>
+                    </div>
+                    <div class="knob-label">MACRO3<br><span class="knob-value">64</span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Slider interaction
+        document.querySelectorAll('.slider-vertical').forEach(slider => {
+            slider.addEventListener('input', (e) => {
+                const valueDisplay = e.target.parentElement.querySelector('.slider-value');
+                valueDisplay.textContent = e.target.value;
+            });
+        });
+
+        // Knob interaction
+        let activeKnob = null;
+        let startY = 0;
+        let startValue = 64;
+
+        document.querySelectorAll('.knob').forEach(knob => {
+            knob.addEventListener('mousedown', (e) => {
+                activeKnob = knob;
+                startY = e.clientY;
+                const indicator = knob.querySelector('.knob-indicator');
+                const rotation = parseFloat(indicator.style.transform?.match(/-?\d+/)?.[0] || 0);
+                startValue = (rotation + 135) / 270 * 127;
+                e.preventDefault();
+            });
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (activeKnob) {
+                const deltaY = startY - e.clientY;
+                let value = startValue + deltaY;
+                value = Math.max(0, Math.min(127, value));
+                
+                const rotation = (value / 127) * 270 - 135;
+                const indicator = activeKnob.querySelector('.knob-indicator');
+                indicator.style.transform = `rotate(${rotation}deg)`;
+                
+                const valueDisplay = activeKnob.parentElement.querySelector('.knob-value');
+                valueDisplay.textContent = Math.round(value);
+            }
+        });
+
+        document.addEventListener('mouseup', () => {
+            activeKnob = null;
+        });
+
+        // Pad interaction
+        document.querySelectorAll('.pad').forEach(pad => {
+            pad.addEventListener('mousedown', () => {
+                pad.classList.add('active');
+            });
+            
+            pad.addEventListener('mouseup', () => {
+                setTimeout(() => pad.classList.remove('active'), 100);
+            });
+            
+            pad.addEventListener('mouseleave', () => {
+                pad.classList.remove('active');
+            });
+        });
+
+        // XY Pad interaction
+        document.querySelectorAll('.xy-pad').forEach(xyPad => {
+            const cursor = xyPad.querySelector('.xy-cursor');
+            let isDragging = false;
+            
+            xyPad.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                updateXYPosition(e, xyPad, cursor);
+            });
+            
+            xyPad.addEventListener('mousemove', (e) => {
+                if (isDragging) {
+                    updateXYPosition(e, xyPad, cursor);
+                }
+            });
+            
+            document.addEventListener('mouseup', () => {
+                isDragging = false;
+            });
+        });
+
+        function updateXYPosition(e, pad, cursor) {
+            const rect = pad.getBoundingClientRect();
+            const x = ((e.clientX - rect.left) / rect.width) * 100;
+            const y = ((e.clientY - rect.top) / rect.height) * 100;
+            
+            cursor.style.left = Math.max(0, Math.min(100, x)) + '%';
+            cursor.style.top = Math.max(0, Math.min(100, y)) + '%';
+        }
+
+        // Button interaction
+        document.querySelectorAll('.button').forEach(button => {
+            button.addEventListener('click', () => {
+                button.classList.toggle('active');
+            });
+        });
+
+        // Transport button interaction
+        document.querySelectorAll('.transport-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.transport-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                setTimeout(() => btn.classList.remove('active'), 200);
+            });
+        });
+
+        // Fader interaction
+        document.querySelectorAll('.fader-handle').forEach(handle => {
+            let isDragging = false;
+            let startY = 0;
+            let startTop = 0;
+            
+            handle.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                startY = e.clientY;
+                startTop = parseInt(handle.style.top);
+                e.preventDefault();
+            });
+            
+            document.addEventListener('mousemove', (e) => {
+                if (isDragging) {
+                    const deltaY = e.clientY - startY;
+                    let newTop = startTop + deltaY;
+                    newTop = Math.max(0, Math.min(180, newTop));
+                    handle.style.top = newTop + 'px';
+                    
+                    // Update value display
+                    const value = Math.round((1 - (newTop / 180)) * 127);
+                    const valueDisplay = handle.parentElement.parentElement.querySelector('.fader-value');
+                    valueDisplay.textContent = value;
+                }
+            });
+            
+            document.addEventListener('mouseup', () => {
+                isDragging = false;
+            });
+        });
+
+        // Random LED blinking
+        setInterval(() => {
+            const leds = document.querySelectorAll('.led:not(.active)');
+            if (leds.length > 0 && Math.random() > 0.7) {
+                const randomLed = leds[Math.floor(Math.random() * leds.length)];
+                randomLed.classList.add('active');
+                setTimeout(() => randomLed.classList.remove('active'), 200);
+            }
+        }, 500);
+    </script>
+</body>
+</html>

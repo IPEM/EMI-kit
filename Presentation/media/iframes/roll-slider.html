@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Roll to MIDI Slider</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #fff;
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        #container {
+            display: flex;
+            gap: 60px;
+            align-items: center;
+        }
+
+        #canvas3d {
+            border: 1px solid #ccc;
+            cursor: grab;
+            touch-action: none;
+        }
+
+        #canvas3d:active {
+            cursor: grabbing;
+        }
+
+        .slider-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .slider-track {
+            width: 60px;
+            height: 400px;
+            background: #ddd;
+            border-radius: 30px;
+            position: relative;
+            box-shadow: inset 0 2px 8px rgba(0,0,0,0.3);
+        }
+
+        .slider-thumb {
+            position: absolute;
+            width: 80px;
+            height: 40px;
+            background: #333;
+            border: 3px solid #666;
+            border-radius: 8px;
+            left: 50%;
+            transform: translateX(-50%);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.4);
+            transition: top 0.1s ease-out;
+        }
+
+        .slider-value {
+            font-size: 48px;
+            font-weight: bold;
+            color: #333;
+            min-width: 120px;
+            text-align: center;
+        }
+
+        .label {
+            font-size: 24px;
+            color: #666;
+            text-align: center;
+        }
+
+        .instructions {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 18px;
+            color: #666;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="container">
+        <div>
+            <canvas id="canvas3d" width="400" height="400"></canvas>
+            <div class="label" style="margin-top: 10px;">Pitch: <span id="rollValue">0°</span></div>
+        </div>
+
+        <div class="slider-container">
+            <div class="label">MIDI CC Value</div>
+            <div class="slider-track">
+                <div class="slider-thumb" id="sliderThumb"></div>
+            </div>
+            <div class="slider-value" id="midiValue">64</div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas3d');
+        const ctx = canvas.getContext('2d');
+        const sliderThumb = document.getElementById('sliderThumb');
+        const midiValueDisplay = document.getElementById('midiValue');
+        const rollValueDisplay = document.getElementById('rollValue');
+
+        let pitch = 0; // Pitch angle in degrees (-90 to 90)
+        let isDragging = false;
+        let lastMouseY = 0;
+
+        // MIDI Setup
+        let midi = null;
+        let midiConnected = false;
+        const scaleFactor = 2.83; // Scale factor to convert MIDI to degrees
+        
+        // Initialize MIDI
+        if (navigator.requestMIDIAccess) {
+            navigator.requestMIDIAccess({ sysex: false })
+                .then(onMIDISuccess, onMIDIFailure);
+        }
+        
+        function onMIDISuccess(midiAccess) {
+            midi = midiAccess;
+            midiConnected = true;
+            console.log('MIDI Connected');
+            
+            // Listen to all MIDI inputs
+            const inputs = midi.inputs.values();
+            for (let input = inputs.next(); input && !input.done; input = inputs.next()) {
+                input.value.onmidimessage = onMIDIMessage;
+            }
+        }
+        
+        function onMIDIFailure(e) {
+            console.log("MIDI access failed:", e);
+            midiConnected = false;
+        }
+        
+        function onMIDIMessage(message) {
+            const data = message.data;
+            
+            // Check if it's a CC message (0xB0-0xBF)
+            if ((data[0] & 0xF0) === 0xB0) {
+                const cc = data[1];
+                const value = data[2];
+                
+                // CC 80 controls pitch
+                if (cc === 80) {
+                    // Convert MIDI value (0-127) to degrees (-90 to 90)
+                    // Center at 63.5, then scale
+                    pitch = (value - 63.5) * scaleFactor;
+                    pitch = Math.max(-90, Math.min(90, pitch)); // Clamp to -90 to 90
+                    
+                    updateDisplay();
+                }
+            }
+        }
+
+        // 3D projection parameters
+        const centerX = canvas.width / 2;
+        const centerY = canvas.height / 2;
+        const scale = 80;
+
+        // Cuboid dimensions (width, height, depth)
+        const cuboidW = 1;  // was 3, now short
+        const cuboidH = 3;  // was 1, now long
+        const cuboidD = 1;
+
+        // Mouse/touch event handlers
+        canvas.addEventListener('mousedown', startDrag);
+        canvas.addEventListener('mousemove', drag);
+        canvas.addEventListener('mouseup', stopDrag);
+        canvas.addEventListener('mouseleave', stopDrag);
+
+        canvas.addEventListener('touchstart', handleTouchStart);
+        canvas.addEventListener('touchmove', handleTouchMove);
+        canvas.addEventListener('touchend', stopDrag);
+
+        function startDrag(e) {
+            isDragging = true;
+            lastMouseY = e.clientY;
+        }
+
+        function drag(e) {
+            if (!isDragging) return;
+            
+            const deltaY = e.clientY - lastMouseY;
+            pitch -= deltaY * 0.5; // Negative because mouse down = pitch up
+            pitch = Math.max(-90, Math.min(90, pitch)); // Clamp to -90 to 90
+            
+            lastMouseY = e.clientY;
+            updateDisplay();
+        }
+
+        function stopDrag() {
+            isDragging = false;
+        }
+
+        function handleTouchStart(e) {
+            e.preventDefault();
+            isDragging = true;
+            lastMouseY = e.touches[0].clientY;
+        }
+
+        function handleTouchMove(e) {
+            e.preventDefault();
+            if (!isDragging) return;
+            
+            const deltaY = e.touches[0].clientY - lastMouseY;
+            pitch -= deltaY * 0.5;
+            pitch = Math.max(-90, Math.min(90, pitch));
+            
+            lastMouseY = e.touches[0].clientY;
+            updateDisplay();
+        }
+
+        // Convert 3D point to 2D projection
+        function project(x, y, z, pitchRad, yaw, roll) {
+            // Apply rotation matrices
+            // Pitch rotation (around X axis)
+            let y1 = y * Math.cos(pitchRad) - z * Math.sin(pitchRad);
+            let z1 = y * Math.sin(pitchRad) + z * Math.cos(pitchRad);
+            let x1 = x;
+
+            // Roll rotation (around Z axis) - fixed slight tilt for better view
+            const rollRad = roll * Math.PI / 180;
+            let x2 = x1 * Math.cos(rollRad) - y1 * Math.sin(rollRad);
+            let y2 = x1 * Math.sin(rollRad) + y1 * Math.cos(rollRad);
+            let z2 = z1;
+
+            // Yaw rotation (around Y axis) - fixed slight tilt for better view
+            const yawRad = yaw * Math.PI / 180;
+            let x3 = x2 * Math.cos(yawRad) + z2 * Math.sin(yawRad);
+            let z3 = -x2 * Math.sin(yawRad) + z2 * Math.cos(yawRad);
+            let y3 = y2;
+
+            // Perspective projection
+            const perspective = 300;
+            const perspectiveFactor = perspective / (perspective + z3);
+            
+            return {
+                x: centerX + x3 * scale * perspectiveFactor,
+                y: centerY + y3 * scale * perspectiveFactor,
+                z: z3
+            };
+        }
+
+        // Draw the cuboid
+        function drawCuboid() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            const pitchRad = pitch * Math.PI / 180;
+            const roll = 20; // Fixed roll for better view
+            const yaw = 15;   // Fixed yaw for better view
+
+            // Define vertices of the cuboid
+            const vertices = [
+                [-cuboidW/2, -cuboidH/2, -cuboidD/2],
+                [ cuboidW/2, -cuboidH/2, -cuboidD/2],
+                [ cuboidW/2,  cuboidH/2, -cuboidD/2],
+                [-cuboidW/2,  cuboidH/2, -cuboidD/2],
+                [-cuboidW/2, -cuboidH/2,  cuboidD/2],
+                [ cuboidW/2, -cuboidH/2,  cuboidD/2],
+                [ cuboidW/2,  cuboidH/2,  cuboidD/2],
+                [-cuboidW/2,  cuboidH/2,  cuboidD/2]
+            ];
+
+            // Project all vertices
+            const projectedVertices = vertices.map(v => 
+                project(v[0], v[1], v[2], pitchRad, yaw, roll)
+            );
+
+            // Define faces with their vertices (in order for proper rendering)
+            const faces = [
+                { indices: [0, 1, 2, 3], color: '#FFD700' }, // Front
+                { indices: [4, 5, 6, 7], color: '#FFA500' }, // Back
+                { indices: [0, 1, 5, 4], color: '#FFB700' }, // Bottom
+                { indices: [2, 3, 7, 6], color: '#FFC720' }, // Top
+                { indices: [0, 3, 7, 4], color: '#FFAA00' }, // Left
+                { indices: [1, 2, 6, 5], color: '#FFE040' }  // Right
+            ];
+
+            // Calculate average Z for each face for proper depth sorting
+            const facesWithDepth = faces.map(face => {
+                const avgZ = face.indices.reduce((sum, i) => 
+                    sum + projectedVertices[i].z, 0) / face.indices.length;
+                return { ...face, avgZ };
+            });
+
+            // Sort faces by depth (back to front)
+            facesWithDepth.sort((a, b) => a.avgZ - b.avgZ);
+
+            // Draw each face
+            facesWithDepth.forEach(face => {
+                ctx.beginPath();
+                const firstVertex = projectedVertices[face.indices[0]];
+                ctx.moveTo(firstVertex.x, firstVertex.y);
+                
+                for (let i = 1; i < face.indices.length; i++) {
+                    const vertex = projectedVertices[face.indices[i]];
+                    ctx.lineTo(vertex.x, vertex.y);
+                }
+                
+                ctx.closePath();
+                ctx.fillStyle = face.color;
+                ctx.fill();
+                ctx.strokeStyle = '#CC9900';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            });
+
+            // Draw edges for better definition
+            const edges = [
+                [0, 1], [1, 2], [2, 3], [3, 0], // Front face
+                [4, 5], [5, 6], [6, 7], [7, 4], // Back face
+                [0, 4], [1, 5], [2, 6], [3, 7]  // Connecting edges
+            ];
+
+            ctx.strokeStyle = '#996600';
+            ctx.lineWidth = 1;
+            edges.forEach(edge => {
+                const v1 = projectedVertices[edge[0]];
+                const v2 = projectedVertices[edge[1]];
+                ctx.beginPath();
+                ctx.moveTo(v1.x, v1.y);
+                ctx.lineTo(v2.x, v2.y);
+                ctx.stroke();
+            });
+        }
+
+        // Update MIDI slider position
+        function updateSlider() {
+            // Map pitch (-90 to 90) to MIDI value (0 to 127)
+            const midiValue = Math.round(((pitch + 90) / 180) * 127);
+            
+            // Update slider thumb position (invert for visual representation)
+            const sliderHeight = 400;
+            const thumbPosition = sliderHeight - ((midiValue / 127) * sliderHeight) - 20; // 20 is half thumb height
+            sliderThumb.style.top = thumbPosition + 'px';
+            
+            // Update displays
+            midiValueDisplay.textContent = midiValue;
+            rollValueDisplay.textContent = Math.round(pitch) + '°';
+        }
+
+        // Update all displays
+        function updateDisplay() {
+            drawCuboid();
+            updateSlider();
+        }
+
+        // Initial render
+        updateDisplay();
+
+        // Animate for smooth rendering
+        function animate() {
+            if (isDragging) {
+                updateDisplay();
+            }
+            requestAnimationFrame(animate);
+        }
+        animate();
+    </script>
+</body>
+</html>

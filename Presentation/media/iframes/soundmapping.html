@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>MIDI Device Audio Synthesizer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #0c0c0c 0%, #1a1a1a 100%);
+            color: #ffffff;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            grid-template-rows: 1fr;
+            transition: grid-template-columns 0.3s ease;
+        }
+        
+        body.sidebar-hidden {
+            grid-template-columns: 0px 1fr;
+        }
+        
+        #controls {
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            border-right: 2px solid #333;
+            overflow-y: auto;
+            transition: transform 0.3s ease;
+        }
+        
+        body.sidebar-hidden #controls {
+            transform: translateX(-100%);
+        }
+        
+        #visualization {
+            position: relative;
+            background: linear-gradient(45deg, #111 0%, #222 100%);
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .canvas-container {
+            flex: 1;
+            position: relative;
+        }
+        
+        canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        
+        .control-section {
+            margin-bottom: 25px;
+        }
+        
+        .control-section h3 {
+            color: #4CAF50;
+            margin-bottom: 10px;
+            font-size: 16px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .audio-control {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+            padding: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 4px;
+            border-left: 3px solid;
+        }
+        
+        .audio-control.frequency { border-left-color: #ff4444; }
+        .audio-control.waveform { border-left-color: #44ff44; }
+        .audio-control.volume { border-left-color: #4444ff; }
+        
+        .audio-control label {
+            flex: 1;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+        
+        .value-display {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 4px 8px;
+            border-radius: 3px;
+            font-family: monospace;
+            min-width: 80px;
+            text-align: center;
+        }
+        
+        button {
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            margin: 2px;
+        }
+        
+        button:hover {
+            background: linear-gradient(135deg, #45a049 0%, #4CAF50 100%);
+            transform: translateY(-1px);
+        }
+        
+        button.stop {
+            background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%);
+        }
+        
+        button.stop:hover {
+            background: linear-gradient(135deg, #d32f2f 0%, #f44336 100%);
+        }
+        
+        .status {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+        }
+        
+        .status.connected {
+            border-left: 3px solid #4CAF50;
+        }
+        
+        .status.disconnected {
+            border-left: 3px solid #ff4444;
+        }
+        
+        .toggle-sidebar {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #333;
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            z-index: 1000;
+            transition: all 0.3s ease;
+        }
+        
+        .toggle-sidebar:hover {
+            background: rgba(0, 0, 0, 0.9);
+            border-color: #4CAF50;
+        }
+        
+        input[type="number"], input[type="range"] {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid #444;
+            color: white;
+            padding: 5px;
+            border-radius: 3px;
+            width: 80px;
+        }
+        
+        input[type="range"] {
+            width: 120px;
+        }
+        
+        .waveform-visual {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 200px;
+            height: 150px;
+            background: rgba(0, 0, 0, 0.7);
+            border-radius: 10px;
+            border: 2px solid #333;
+            padding: 10px;
+        }
+        
+        .waveform-canvas {
+            width: 100%;
+            height: 100%;
+            background: #000;
+            border-radius: 5px;
+        }
+        
+        .oscilloscope-container {
+            flex: 2;
+            position: relative;
+            border-top: 2px solid #333;
+        }
+        
+        .frequency-container {
+            flex: 1;
+            position: relative;
+        }
+        
+        .canvas-label {
+            position: absolute;
+            top: 10px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 5px 10px;
+            border-radius: 3px;
+            font-size: 12px;
+            color: #4CAF50;
+            z-index: 100;
+        }
+    </style>
+</head>
+<body>
+    <div id="controls">
+        <div class="status" id="midiStatus">
+            MIDI: Disconnected
+        </div>
+        
+        <div class="control-section">
+            <h3>Audio Control</h3>
+            <div class="audio-control frequency">
+                <label>Frequency (Pitch CC 82)</label>
+                <div class="value-display" id="frequencyValue">260 Hz</div>
+            </div>
+            <div class="audio-control waveform">
+                <label>Waveform (Roll CC 80)</label>
+                <div class="value-display" id="waveformValue">Sine</div>
+            </div>
+            <div class="audio-control volume">
+                <label>Volume</label>
+                <div class="value-display" id="volumeValue">0.3</div>
+            </div>
+        </div>
+        
+        <div class="control-section">
+            <h3>Audio Settings</h3>
+            <label>
+                Base Frequency:
+                <input type="number" id="baseFreq" value="260" min="50" max="2000">
+            </label>
+            <br><br>
+            <label>
+                Frequency Range:
+                <input type="number" id="freqRange" value="400" min="100" max="1000">
+            </label>
+            <br><br>
+            <label>
+                Volume:
+                <input type="range" id="volumeSlider" min="0" max="1" step="0.1" value="0.3">
+            </label>
+            <br><br>
+            <button id="startAudio">Start Audio</button>
+            <button id="stopAudio" class="stop">Stop Audio</button>
+        </div>
+        
+        <div class="control-section">
+            <h3>Visualization</h3>
+            <label>
+                Oscilloscope Gain:
+                <input type="range" id="oscGain" min="0.1" max="2" step="0.1" value="1">
+            </label>
+            <br><br>
+            <label>
+                Time Scale:
+                <input type="range" id="timeScale" min="0.5" max="5" step="0.5" value="2">
+            </label>
+        </div>
+        
+        <div class="control-section">
+            <h3>Test Mode</h3>
+            <button id="testMode">Generate Test Data</button>
+        </div>
+    </div>
+    
+    <div id="visualization">
+        <button class="toggle-sidebar" id="toggleSidebar">☰</button>
+        
+        <div class="canvas-container frequency-container">
+            <div class="canvas-label">Frequency Control (Pitch)</div>
+            <canvas id="frequencyGraph"></canvas>
+        </div>
+        
+        <div class="canvas-container oscilloscope-container">
+            <div class="canvas-label">Oscilloscope</div>
+            <canvas id="oscilloscope"></canvas>
+        </div>
+        
+        <div class="waveform-visual">
+            <canvas class="waveform-canvas" id="waveformCanvas"></canvas>
+        </div>
+    </div>
+
+    <script>
+        // Audio Context and Web Audio API
+        let audioContext = null;
+        let oscillator = null;
+        let gainNode = null;
+        let analyserNode = null;
+        let isAudioStarted = false;
+        let waveformBuffer = null;
+        let bufferSource = null;
+        
+        // MIDI Setup
+        let midi = null;
+        let midiConnected = false;
+        
+        // Audio parameters
+        let currentFrequency = 260;
+        let currentWaveform = 'sine';
+        let rollValue = 0; // 0-180 range
+        
+        // Canvas setup
+        const frequencyCanvas = document.getElementById('frequencyGraph');
+        const frequencyCtx = frequencyCanvas.getContext('2d');
+        const oscilloscopeCanvas = document.getElementById('oscilloscope');
+        const oscilloscopeCtx = oscilloscopeCanvas.getContext('2d');
+        const waveformCanvas = document.getElementById('waveformCanvas');
+        const waveformCtx = waveformCanvas.getContext('2d');
+        
+        // Data storage
+        let frequencyData = [];
+        let currentTime = 0;
+        let maxDataPoints = 500;
+        
+        // UI elements
+        const midiStatus = document.getElementById('midiStatus');
+        const frequencyValue = document.getElementById('frequencyValue');
+        const waveformValue = document.getElementById('waveformValue');
+        const volumeValue = document.getElementById('volumeValue');
+        const baseFreqInput = document.getElementById('baseFreq');
+        const freqRangeInput = document.getElementById('freqRange');
+        const volumeSlider = document.getElementById('volumeSlider');
+        
+        // MIDI CC mappings
+        const ccMappings = {
+            80: 'roll',    // CC 80 for waveform control
+            82: 'pitch'    // CC 82 for frequency control
+        };
+        
+        // Initialize MIDI
+        if (navigator.requestMIDIAccess) {
+            navigator.requestMIDIAccess({ sysex: false })
+                .then(onMIDISuccess, onMIDIFailure);
+        } else {
+            alert("No MIDI support in your browser.");
+        }
+        
+        function onMIDISuccess(midiAccess) {
+            midi = midiAccess;
+            midiConnected = true;
+            updateMIDIStatus();
+            
+            const inputs = midi.inputs.values();
+            for (let input = inputs.next(); input && !input.done; input = inputs.next()) {
+                input.value.onmidimessage = onMIDIMessage;
+            }
+        }
+        
+        function onMIDIFailure(e) {
+            console.log("MIDI access failed:", e);
+            midiConnected = false;
+            updateMIDIStatus();
+        }
+        
+        function updateMIDIStatus() {
+            midiStatus.textContent = midiConnected ? "MIDI: Connected" : "MIDI: Disconnected";
+            midiStatus.className = midiConnected ? "status connected" : "status disconnected";
+        }
+        
+        function onMIDIMessage(message) {
+            const data = message.data;
+            currentTime = performance.now() / 1000;
+            
+            if ((data[0] & 0xF0) === 0xB0) {
+                const cc = data[1];
+                const value = data[2];
+                
+                if (cc === 82) { // Pitch control
+                    const baseFreq = parseFloat(baseFreqInput.value);
+                    const freqRange = parseFloat(freqRangeInput.value);
+                    // Map MIDI value (0-127) to frequency range
+                    currentFrequency = baseFreq + ((value - 63.5) / 63.5) * (freqRange / 2);
+                    currentFrequency = Math.max(50, Math.min(2000, currentFrequency));
+                    
+                    // Store frequency data for visualization
+                    frequencyData.push({ time: currentTime, frequency: currentFrequency });
+                    if (frequencyData.length > maxDataPoints) {
+                        frequencyData.shift();
+                    }
+                    
+                    updateAudioFrequency();
+                    updateDisplays();
+                }
+                
+                if (cc === 80) { // Roll control for waveform
+                    // Map MIDI value (0-127) to roll (0-180)
+                    rollValue = (value / 127) * 180;
+                    updateWaveform();
+                    updateDisplays();
+                }
+            }
+        }
+        
+        function updateAudioFrequency() {
+            if (oscillator && isAudioStarted) {
+                // Use exponentialRampToValueAtTime for smooth frequency changes
+                const targetTime = audioContext.currentTime + 0.01; // 10ms transition
+                oscillator.frequency.exponentialRampToValueAtTime(currentFrequency, targetTime);
+            }
+        }
+        
+        function createWaveformBuffer(type, rollMix) {
+            const sampleRate = audioContext.sampleRate;
+            const bufferLength = sampleRate / currentFrequency; // One cycle
+            const buffer = audioContext.createBuffer(1, bufferLength, sampleRate);
+            const data = buffer.getChannelData(0);
+            
+            for (let i = 0; i < bufferLength; i++) {
+                const phase = (i / bufferLength) * 2 * Math.PI;
+                let sample = 0;
+                
+                // Mix between sine and target waveform based on roll
+                const sineValue = Math.sin(phase);
+                let targetValue = sineValue;
+                
+                if (rollMix > 0.33) {
+                    // Triangle wave
+                    targetValue = (2 / Math.PI) * Math.asin(Math.sin(phase));
+                }
+                if (rollMix > 0.66) {
+                    // Square wave
+                    targetValue = Math.sign(Math.sin(phase));
+                }
+                
+                // Smooth interpolation between sine and target waveform
+                const mixRatio = Math.min(rollMix * 3, 1); // Scale to 0-1
+                sample = sineValue * (1 - mixRatio) + targetValue * mixRatio;
+                
+                data[i] = sample * 0.3; // Reduce amplitude to prevent clipping
+            }
+            
+            return buffer;
+        }
+        
+        function updateWaveform() {
+            if (!isAudioStarted || !audioContext) return;
+            
+            // Calculate mix ratio from roll value (0-180 degrees)
+            const mixRatio = rollValue / 180;
+            
+            // For simple waveforms, use built-in oscillator types with smooth transitions
+            if (mixRatio < 0.2) {
+                if (oscillator.type !== 'sine') {
+                    oscillator.type = 'sine';
+                }
+                currentWaveform = 'sine';
+            } else if (mixRatio < 0.7) {
+                if (oscillator.type !== 'triangle') {
+                    oscillator.type = 'triangle';
+                }
+                currentWaveform = 'triangle';
+            } else {
+                if (oscillator.type !== 'square') {
+                    oscillator.type = 'square';
+                }
+                currentWaveform = 'square';
+            }
+        }
+        
+        function startAudio() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            
+            if (audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
+            
+            // Stop any existing audio
+            if (oscillator) {
+                oscillator.stop();
+            }
+            
+            // Create audio nodes
+            oscillator = audioContext.createOscillator();
+            gainNode = audioContext.createGain();
+            analyserNode = audioContext.createAnalyser();
+            
+            // Configure analyser for oscilloscope
+            analyserNode.fftSize = 2048;
+            analyserNode.smoothingTimeConstant = 0.3;
+            
+            // Connect audio graph
+            oscillator.connect(gainNode);
+            gainNode.connect(analyserNode);
+            analyserNode.connect(audioContext.destination);
+            
+            // Set initial parameters with smooth transitions
+            oscillator.frequency.setValueAtTime(currentFrequency, audioContext.currentTime);
+            oscillator.type = 'sine'; // Start with sine
+            
+            // Set initial gain with fade-in to prevent clicks
+            gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+            gainNode.gain.linearRampToValueAtTime(parseFloat(volumeSlider.value), audioContext.currentTime + 0.1);
+            
+            oscillator.start();
+            isAudioStarted = true;
+            
+            // Update UI
+            document.getElementById('startAudio').disabled = true;
+            document.getElementById('stopAudio').disabled = false;
+            
+            // Apply current waveform
+            updateWaveform();
+        }
+        
+        function stopAudio() {
+            if (oscillator && isAudioStarted) {
+                // Fade out to prevent clicks
+                gainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.1);
+                
+                // Stop oscillator after fade
+                setTimeout(() => {
+                    if (oscillator) {
+                        oscillator.stop();
+                        oscillator = null;
+                    }
+                }, 150);
+            }
+            
+            isAudioStarted = false;
+            
+            // Update UI
+            document.getElementById('startAudio').disabled = false;
+            document.getElementById('stopAudio').disabled = true;
+        }
+        
+        function restartOscillator() {
+            // Remove this function as we no longer need to restart oscillators
+            // Waveform changes are now handled smoothly within updateWaveform()
+        }
+        
+        function updateDisplays() {
+            frequencyValue.textContent = currentFrequency.toFixed(1) + ' Hz';
+            waveformValue.textContent = currentWaveform.charAt(0).toUpperCase() + currentWaveform.slice(1) + 
+                                       ` (${rollValue.toFixed(0)}°)`;
+            volumeValue.textContent = parseFloat(volumeSlider.value).toFixed(1);
+        }
+        
+        function resizeCanvases() {
+            frequencyCanvas.width = frequencyCanvas.clientWidth;
+            frequencyCanvas.height = frequencyCanvas.clientHeight;
+            oscilloscopeCanvas.width = oscilloscopeCanvas.clientWidth;
+            oscilloscopeCanvas.height = oscilloscopeCanvas.clientHeight;
+            waveformCanvas.width = waveformCanvas.clientWidth;
+            waveformCanvas.height = waveformCanvas.clientHeight;
+        }
+        
+        function drawFrequencyGraph() {
+            frequencyCtx.clearRect(0, 0, frequencyCanvas.width, frequencyCanvas.height);
+            
+            if (frequencyData.length < 2) return;
+            
+            // Draw grid
+            frequencyCtx.strokeStyle = '#333';
+            frequencyCtx.lineWidth = 1;
+            
+            // Horizontal lines
+            for (let i = 0; i <= 10; i++) {
+                const y = (i / 10) * frequencyCanvas.height;
+                frequencyCtx.beginPath();
+                frequencyCtx.moveTo(0, y);
+                frequencyCtx.lineTo(frequencyCanvas.width, y);
+                frequencyCtx.stroke();
+            }
+            
+            // Vertical lines
+            for (let i = 0; i <= 10; i++) {
+                const x = (i / 10) * frequencyCanvas.width;
+                frequencyCtx.beginPath();
+                frequencyCtx.moveTo(x, 0);
+                frequencyCtx.lineTo(x, frequencyCanvas.height);
+                frequencyCtx.stroke();
+            }
+            
+            // Draw frequency line
+            frequencyCtx.strokeStyle = '#ff4444';
+            frequencyCtx.lineWidth = 2;
+            frequencyCtx.beginPath();
+            
+            const timeRange = 10; // 10 seconds
+            const baseFreq = parseFloat(baseFreqInput.value);
+            const freqRange = parseFloat(freqRangeInput.value);
+            const minFreq = baseFreq - freqRange / 2;
+            const maxFreq = baseFreq + freqRange / 2;
+            
+            frequencyData.forEach((point, index) => {
+                const x = (index / maxDataPoints) * frequencyCanvas.width;
+                const normalizedFreq = (point.frequency - minFreq) / (maxFreq - minFreq);
+                const y = frequencyCanvas.height - (normalizedFreq * frequencyCanvas.height);
+                
+                if (index === 0) {
+                    frequencyCtx.moveTo(x, y);
+                } else {
+                    frequencyCtx.lineTo(x, y);
+                }
+            });
+            
+            frequencyCtx.stroke();
+            
+            // Draw current frequency indicator
+            if (frequencyData.length > 0) {
+                const normalizedFreq = (currentFrequency - minFreq) / (maxFreq - minFreq);
+                const y = frequencyCanvas.height - (normalizedFreq * frequencyCanvas.height);
+                frequencyCtx.fillStyle = '#ff4444';
+                frequencyCtx.beginPath();
+                frequencyCtx.arc(frequencyCanvas.width - 10, y, 5, 0, 2 * Math.PI);
+                frequencyCtx.fill();
+            }
+        }
+        
+        function drawOscilloscope() {
+            if (!analyserNode || !isAudioStarted) {
+                // Clear oscilloscope when no audio
+                oscilloscopeCtx.clearRect(0, 0, oscilloscopeCanvas.width, oscilloscopeCanvas.height);
+                
+                // Draw grid only
+                oscilloscopeCtx.strokeStyle = '#333';
+                oscilloscopeCtx.lineWidth = 1;
+                
+                // Center line
+                oscilloscopeCtx.beginPath();
+                oscilloscopeCtx.moveTo(0, oscilloscopeCanvas.height / 2);
+                oscilloscopeCtx.lineTo(oscilloscopeCanvas.width, oscilloscopeCanvas.height / 2);
+                oscilloscopeCtx.stroke();
+                
+                // Vertical lines
+                for (let i = 0; i <= 10; i++) {
+                    const x = (i / 10) * oscilloscopeCanvas.width;
+                    oscilloscopeCtx.beginPath();
+                    oscilloscopeCtx.moveTo(x, 0);
+                    oscilloscopeCtx.lineTo(x, oscilloscopeCanvas.height);
+                    oscilloscopeCtx.stroke();
+                }
+                return;
+            }
+            
+            const bufferLength = analyserNode.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+            analyserNode.getByteTimeDomainData(dataArray);
+            
+            oscilloscopeCtx.clearRect(0, 0, oscilloscopeCanvas.width, oscilloscopeCanvas.height);
+            
+            // Draw grid
+            oscilloscopeCtx.strokeStyle = '#333';
+            oscilloscopeCtx.lineWidth = 1;
+            
+            // Center line
+            oscilloscopeCtx.beginPath();
+            oscilloscopeCtx.moveTo(0, oscilloscopeCanvas.height / 2);
+            oscilloscopeCtx.lineTo(oscilloscopeCanvas.width, oscilloscopeCanvas.height / 2);
+            oscilloscopeCtx.stroke();
+            
+            // Vertical lines
+            for (let i = 0; i <= 10; i++) {
+                const x = (i / 10) * oscilloscopeCanvas.width;
+                oscilloscopeCtx.beginPath();
+                oscilloscopeCtx.moveTo(x, 0);
+                oscilloscopeCtx.lineTo(x, oscilloscopeCanvas.height);
+                oscilloscopeCtx.stroke();
+            }
+            
+            // Draw waveform
+            oscilloscopeCtx.strokeStyle = '#44ff44';
+            oscilloscopeCtx.lineWidth = 2;
+            oscilloscopeCtx.beginPath();
+            
+            const gain = parseFloat(document.getElementById('oscGain').value);
+            const timeScale = parseFloat(document.getElementById('timeScale').value);
+            const samplesPerPixel = Math.floor(bufferLength / (oscilloscopeCanvas.width * timeScale));
+            
+            let x = 0;
+            for (let i = 0; i < oscilloscopeCanvas.width; i++) {
+                const sampleIndex = Math.floor(i * samplesPerPixel);
+                if (sampleIndex >= bufferLength) break;
+                
+                const v = (dataArray[sampleIndex] / 128.0 - 1.0) * gain; // Convert to -1 to 1 range
+                const y = (oscilloscopeCanvas.height / 2) + (v * oscilloscopeCanvas.height / 4);
+                
+                if (i === 0) {
+                    oscilloscopeCtx.moveTo(x, y);
+                } else {
+                    oscilloscopeCtx.lineTo(x, y);
+                }
+                
+                x = i;
+            }
+            
+            oscilloscopeCtx.stroke();
+        }
+        
+        function drawWaveformVisual() {
+            waveformCtx.clearRect(0, 0, waveformCanvas.width, waveformCanvas.height);
+            
+            // Draw theoretical waveform based on current settings
+            waveformCtx.strokeStyle = '#4CAF50';
+            waveformCtx.lineWidth = 2;
+            waveformCtx.beginPath();
+            
+            const samples = 200;
+            const amplitude = waveformCanvas.height * 0.4;
+            const centerY = waveformCanvas.height / 2;
+            
+            for (let i = 0; i < samples; i++) {
+                const x = (i / samples) * waveformCanvas.width;
+                const phase = (i / samples) * Math.PI * 4; // 2 cycles
+                let y = centerY;
+                
+                // Generate waveform based on current type
+                if (currentWaveform === 'sine') {
+                    y = centerY + Math.sin(phase) * amplitude;
+                } else if (currentWaveform === 'square') {
+                    y = centerY + (Math.sin(phase) > 0 ? amplitude : -amplitude);
+                } else if (currentWaveform === 'triangle') {
+                    y = centerY + (2 / Math.PI) * Math.asin(Math.sin(phase)) * amplitude;
+                }
+                
+                if (i === 0) {
+                    waveformCtx.moveTo(x, y);
+                } else {
+                    waveformCtx.lineTo(x, y);
+                }
+            }
+            
+            waveformCtx.stroke();
+        }
+        
+        function animate() {
+            drawFrequencyGraph();
+            drawOscilloscope();
+            drawWaveformVisual();
+            requestAnimationFrame(animate);
+        }
+        
+        function generateTestData() {
+            const testButton = document.getElementById('testMode');
+            testButton.textContent = 'Generating...';
+            
+            let counter = 0;
+            const interval = setInterval(() => {
+                currentTime = performance.now() / 1000;
+                
+                // Generate smooth test data
+                const time = counter * 0.1;
+                const pitchValue = 63.5 + Math.sin(time * 0.5) * 30; // MIDI range around center
+                const rollValueMidi = 63.5 + Math.cos(time * 0.3) * 63.5; // MIDI range 0-127
+                
+                // Simulate MIDI messages
+                onMIDIMessage({
+                    data: [0xB0, 82, Math.round(pitchValue)],
+                    timeStamp: performance.now()
+                });
+                
+                onMIDIMessage({
+                    data: [0xB0, 80, Math.round(rollValueMidi)],
+                    timeStamp: performance.now()
+                });
+                
+                counter++;
+                if (counter > 100) {
+                    clearInterval(interval);
+                    testButton.textContent = 'Generate Test Data';
+                }
+            }, 100);
+        }
+        
+        // Event listeners
+        document.getElementById('startAudio').addEventListener('click', startAudio);
+        document.getElementById('stopAudio').addEventListener('click', stopAudio);
+        document.getElementById('testMode').addEventListener('click', generateTestData);
+        document.getElementById('toggleSidebar').addEventListener('click', () => {
+            document.body.classList.toggle('sidebar-hidden');
+        });
+        
+        volumeSlider.addEventListener('input', () => {
+            if (gainNode && isAudioStarted) {
+                // Use exponential ramp for volume changes to sound more natural
+                const targetTime = audioContext.currentTime + 0.01;
+                const targetVolume = Math.max(0.001, parseFloat(volumeSlider.value)); // Avoid zero for exponential ramp
+                gainNode.gain.exponentialRampToValueAtTime(targetVolume, targetTime);
+            }
+            updateDisplays();
+        });
+        
+        window.addEventListener('resize', resizeCanvases);
+        
+        // Initialize
+        resizeCanvases();
+        updateMIDIStatus();
+        updateDisplays();
+        document.getElementById('stopAudio').disabled = true;
+        animate();
+    </script>
+</body>
+</html>
