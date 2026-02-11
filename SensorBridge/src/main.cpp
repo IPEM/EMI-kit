@@ -1,10 +1,14 @@
 #include <M5Unified.h> //using M5Unified platform
 #include <Arduino.h>
 #include <WiFi.h>
+#ifdef TRANSPORT_ESPNOW
+#include "network/EspNowSender.h"
+#else
 #include "config/DeviceConfig.h"
 #include "config/ConfigManager.h"
 #include "config/WiFiProvisionerManager.h"
 #include "OscSenderManager.h"
+#endif
 #include <button.hpp>
 #include "yin/yin_fixed.h"
 #include "imu/ImuReader.h" //content from https://github.com/naninunenoy/AxisOrange/blob/master/src/main.cpp
@@ -24,13 +28,17 @@ uint32_t imuSampleCounterTime = 0;
 bool buttonAPressed = false;
 
 
-//device & wifi config
+//device & transport config
+#ifdef TRANSPORT_ESPNOW
+EspNowSender espNowSender;
+#else
 DeviceConfig deviceConfig;
 OscSenderManager oscSenderManager;
 bool startProvisioning = false;
 WiFiProvisionerManager wifiProvisioner;
 ConfigManager config;
 TaskHandle_t dnsTaskHandle = NULL; // Add task handle for DNS discovery
+#endif
 
 //appmode
 enum ApplicationMode {
@@ -135,10 +143,12 @@ void onButtonAPressedChanged(bool released, void* state) {
 }
 
 
-/* Button B long press: start provisioning */
+/* Button B long press: start provisioning (WiFi/OSC mode only) */
 void onButtonBLongPressed(void* state) {
+#ifndef TRANSPORT_ESPNOW
   appMode = APP_MODE_WIFI_PROVISIONING;
   startProvisioning = true;
+#endif
 }
 
 
@@ -157,6 +167,7 @@ void setupDevice(){
   M5.begin();
 }
 
+#ifndef TRANSPORT_ESPNOW
 bool setupWifi(const DeviceConfig &deviceConfig) {
   appMode = APP_MODE_CONNECTING;
 
@@ -216,12 +227,13 @@ void dnsDiscoveryTask(void *parameter) {
   while (true) {
     // Wait 5 seconds between discoveries (0.2Hz)
     vTaskDelay(pdMS_TO_TICKS(5000));
-    
+
     // Perform DNS discovery
     oscSenderManager.discoverReceivers();
     oscSenderManager.cleanupOldReceivers();
   }
 }
+#endif // !TRANSPORT_ESPNOW
 
 void enableCalibration() {
     appMode = APP_MODE_CALIBRATING;
@@ -304,17 +316,20 @@ void setup() {
   setupButtons();
   setupIMU();
 
- 
+#ifdef TRANSPORT_ESPNOW
+  espNowSender.begin(ESPNOW_CHANNEL);
+  guiConnecedId = "ESPNOW";
+  appMode = APP_MODE_CALIBRATING;
+  enableCalibration();
+#else
   config.begin();
 
   if (config.hasValidConfig()){
-    deviceConfig = config.getConfig();    
-    //displayText("Config loaded\n" + deviceConfig.wifi_ssid);
+    deviceConfig = config.getConfig();
     setupWifi(deviceConfig);
   } else {
     provisionWifi();
   }
-
 
   oscSenderManager.begin();
 
@@ -328,6 +343,7 @@ void setup() {
     &dnsTaskHandle,             // Task handle
     0                           // Core ID (0 = core 0, 1 = core 1)
   );
+#endif
 }
 
 
@@ -340,8 +356,12 @@ void handleButtons() {
 
 
 void sendMidiMessage(uint8_t midi_channel, uint8_t midi_command, uint8_t data1, uint8_t data2) {
+#ifdef TRANSPORT_ESPNOW
+  espNowSender.sendMidi(midi_command + midi_channel, data1, data2);
+#else
   int midiMessage[3] = {midi_command + midi_channel, data1, data2};
   oscSenderManager.sendIntArrayToAll("/midi", midiMessage, 3);
+#endif
 }
 
 void sendCCValue(uint8_t midi_channel, uint8_t midi_cc_number, uint8_t midi_cc_value) {
@@ -504,6 +524,7 @@ void loop(){
   int32_t entryTime = millis();
   updateGui();
   
+#ifndef TRANSPORT_ESPNOW
   //this also checks if provisioning is started from the button
   if(appMode == APP_MODE_WIFI_PROVISIONING){
     if(startProvisioning){
@@ -513,6 +534,7 @@ void loop(){
       provisionWifi();
     }
   }
+#endif
 
   if(appMode == APP_MODE_TAP_AND_IMU){
     sendMidiImuData();

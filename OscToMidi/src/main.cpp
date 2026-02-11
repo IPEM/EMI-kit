@@ -1,9 +1,15 @@
 #include <Arduino.h>
-#include <ESPmDNS.h>
 #include <WiFi.h>
+#include <FastLED.h>
+#ifdef TRANSPORT_ESPNOW
+#include <esp_now.h>
+#include <esp_wifi.h>
+#include <espnow_protocol.h>
+#else
+#include <ESPmDNS.h>
 #include <WiFiUdp.h>
 #include <MicroOscUdp.h>
-#include <FastLED.h> 
+#endif
 
 // For debugging purposes; 
 // Use this switch to enable USB MIDI functionality
@@ -22,12 +28,14 @@ const size_t midi_duplicate_filter_size = 5; // Number of previous messages to r
 static MidiMessage midi_duplicate_filter_history[midi_duplicate_filter_size];
 static int midi_duplicate_filter_history_index = 0;
 
+#ifndef TRANSPORT_ESPNOW
 // WiFi Access Point credentials
 const int device_id = 6;
-const char* ap_ssid_format = "OSC-to-MIDI-%02d"; 
+const char* ap_ssid_format = "OSC-to-MIDI-%02d";
 char ap_ssid[32];
 const char* ap_password = "midi1234";
 const char ap_channel = (device_id * 3) % 10 + 1; //avoids that device 1 and two are on a neighboring channel
+#endif
 
 // LED configuration forM5Stack STAMP-S3
 #define PIN_LED    21
@@ -35,11 +43,13 @@ const char ap_channel = (device_id * 3) % 10 + 1; //avoids that device 1 and two
 CRGB leds[NUM_LEDS];
 #define LED_EN     38
 
+#ifndef TRANSPORT_ESPNOW
 // UDP and OSC setup
 WiFiUDP myUdp;
 unsigned int myReceivePort = 8888;  // Port to receive OSC messages
 IPAddress mySendIp(0, 0, 0, 0);  // Placeholder IP (not used for receiving only)
 unsigned int mySendPort = 0;  // Placeholder port (not used for receiving only)
+#endif
 
 #ifdef USE_USB_MIDI
   boolean enableSerial = false;
@@ -47,8 +57,10 @@ unsigned int mySendPort = 0;  // Placeholder port (not used for receiving only)
   boolean enableSerial = true;
 #endif
 
+#ifndef TRANSPORT_ESPNOW
 // MicroOsc instance with 1024 bytes buffer for incoming messages
 MicroOscUdp<1024> myMicroOsc(&myUdp, mySendIp, mySendPort);
+#endif
 
 // MIDI constants
 #define PITCH_BEND 0xE0
@@ -73,15 +85,19 @@ static uint8_t const channel = 0;   // 0 for channel 1
 #endif
 
 // Function declarations
-void setupWiFi();
-void setupUDP();
-void setupMDNS();
 void setupUSBMIDI();
 void setupHeartbeatLed();
 bool isDuplicateMIDIMessage(uint8_t command_and_channel, uint8_t parameter1, uint8_t parameter2);
 void sendMidiCC(uint8_t controller, uint8_t value);
+#ifdef TRANSPORT_ESPNOW
+void setupEspNow();
+#else
+void setupWiFi();
+void setupUDP();
+void setupMDNS();
 void myOnOscMessageReceived(MicroOscMessage& receivedOscMessage);
 void handleMidiMessage(MicroOscMessage& message);
+#endif
 
 // Setup USB MIDI
 #ifdef USE_USB_MIDI
@@ -237,6 +253,36 @@ void toggleHeartbeatLed(CRGB color) {
   FastLED.show();
 }
 
+#ifdef TRANSPORT_ESPNOW
+// ESP-NOW receive buffer
+static volatile bool espnow_message_ready = false;
+static EspNowMidiMessage espnow_rx_buffer;
+
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
+void onEspNowReceive(const esp_now_recv_info_t *info, const uint8_t *data, int len) {
+#else
+void onEspNowReceive(const uint8_t *mac, const uint8_t *data, int len) {
+#endif
+    if (len == sizeof(EspNowMidiMessage) && data[0] == ESPNOW_MSG_MIDI) {
+        memcpy((void *)&espnow_rx_buffer, data, sizeof(EspNowMidiMessage));
+        espnow_message_ready = true;
+    }
+}
+
+void setupEspNow() {
+    WiFi.mode(WIFI_STA);
+    WiFi.disconnect();
+    esp_wifi_set_channel(ESPNOW_CHANNEL, WIFI_SECOND_CHAN_NONE);
+
+    if (esp_now_init() != ESP_OK) {
+        if (enableSerial) Serial.println("ESP-NOW init failed");
+        return;
+    }
+
+    esp_now_register_recv_cb(onEspNowReceive);
+    if (enableSerial) Serial.printf("ESP-NOW receiver initialized on channel %d\n", ESPNOW_CHANNEL);
+}
+#else
 // Setup WiFi Access Point
 void setupWiFi() {  
   if (enableSerial) Serial.print("Creating WiFi Access Point: ");
@@ -283,7 +329,9 @@ void setupMDNS() {
   MDNS.addService("osc", "udp", myReceivePort);
   if (enableSerial) Serial.println("mDNS service registered: osc-to-midi._osc._udp.local on port 8888");
 }
+#endif // !TRANSPORT_ESPNOW
 
+#ifndef TRANSPORT_ESPNOW
 static unsigned long prevMillis = 0;
 // Handle MIDI messages from OSC
 void handleMidiMessage(MicroOscMessage& message) {  
@@ -318,6 +366,7 @@ void myOnOscMessageReceived(MicroOscMessage& receivedOscMessage) {
   }
   toggleHeartbeatLed(CRGB::Green); // Blink green to indicate message received
 }
+#endif // !TRANSPORT_ESPNOW
 
 void setupSerial(){
   Serial.begin(115200);
@@ -334,9 +383,13 @@ void setup() {
   
   
   setupUSBMIDI();
+#ifdef TRANSPORT_ESPNOW
+  setupEspNow();
+#else
   setupWiFi();
   setupUDP();
   setupMDNS();
+#endif
   setupHeartbeatLed();
 
   for (size_t i = i=0; i < 10; i++) {
@@ -348,14 +401,27 @@ void setup() {
 }
 
 void loop() {
+#ifdef TRANSPORT_ESPNOW
+  if (espnow_message_ready) {
+    espnow_message_ready = false;
+    sendMidiMessage(
+      espnow_rx_buffer.command_and_channel,
+      espnow_rx_buffer.parameter1,
+      espnow_rx_buffer.parameter2,
+      0 // cable_num
+    );
+    toggleHeartbeatLed(CRGB::Green);
+  }
+#else
   // Check for incoming OSC messages and call the callback function for each received message
   myMicroOsc.onOscMessageReceived(myOnOscMessageReceived);
+#endif
 
   #ifdef USE_USB_MIDI
     // Keep USB MIDI responsive
     //tud_task(); // Process USB stack for MIDI
   #endif
-  
+
   // Small delay to prevent overwhelming the CPU
   delay(2);
 }
