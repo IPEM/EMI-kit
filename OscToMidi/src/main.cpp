@@ -1,19 +1,29 @@
+
+// put the following define in comments to us the WiFi + UDP transport 
+// instead of ESP-NOW
+#define TRANSPORT_ESPNOW
+
+// For debugging purposes; 
+// Use this switch to enable USB MIDI functionality (which also disables 
+// Serial debug output since they share the same USB interface on the ESP32-S3)
+// Put the define in comments to enable Serial debug output and
+// disable USB MIDI functionality
+#define USE_USB_MIDI
+
 #include <Arduino.h>
 #include <WiFi.h>
 #include <FastLED.h>
 #ifdef TRANSPORT_ESPNOW
-#include <esp_now.h>
-#include <esp_wifi.h>
-#include <espnow_protocol.h>
+  #include <esp_now.h>
+  #include <esp_wifi.h>
+  #include "espnow_protocol.h"
 #else
-#include <ESPmDNS.h>
-#include <WiFiUdp.h>
-#include <MicroOscUdp.h>
+  #include <ESPmDNS.h>
+  #include <WiFiUdp.h>
+  #include <MicroOscUdp.h>
 #endif
 
-// For debugging purposes; 
-// Use this switch to enable USB MIDI functionality
-#define USE_USB_MIDI
+
 
 // Some midi receivers (like DAWs) do not like to receive the same MIDI message twice in a row.
 // For example, sending the same cc message with identical values multiple times in a row can cause issues.
@@ -90,13 +100,13 @@ void setupHeartbeatLed();
 bool isDuplicateMIDIMessage(uint8_t command_and_channel, uint8_t parameter1, uint8_t parameter2);
 void sendMidiCC(uint8_t controller, uint8_t value);
 #ifdef TRANSPORT_ESPNOW
-void setupEspNow();
+  void setupEspNow();
 #else
-void setupWiFi();
-void setupUDP();
-void setupMDNS();
-void myOnOscMessageReceived(MicroOscMessage& receivedOscMessage);
-void handleMidiMessage(MicroOscMessage& message);
+  void setupWiFi();
+  void setupUDP();
+  void setupMDNS();
+  void myOnOscMessageReceived(MicroOscMessage& receivedOscMessage);
+  void handleMidiMessage(MicroOscMessage& message);
 #endif
 
 // Setup USB MIDI
