@@ -4,7 +4,11 @@
 
 uint8_t EspNowSender::broadcastAddress[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 5, 0)
+void EspNowSender::onSendCallback(const wifi_tx_info_t *tx_info, esp_now_send_status_t status) {
+#else
 void EspNowSender::onSendCallback(const uint8_t *mac_addr, esp_now_send_status_t status) {
+#endif
     if (status != ESP_NOW_SEND_SUCCESS) {
         Serial.println("ESP-NOW send failed");
     }

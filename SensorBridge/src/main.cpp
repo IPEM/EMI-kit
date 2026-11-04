@@ -333,7 +333,6 @@ void setup() {
 
 #ifdef TRANSPORT_ESPNOW
   espNowSender.begin(ESPNOW_CHANNEL);
-  guiConnecedId = "ESPNOW";
   appMode = APP_MODE_CALIBRATING;
   enableCalibration();
 #else
@@ -403,12 +402,13 @@ void sendMidiImuData(){
         noteOnTime = millis();
         noteIsOn = true;
       }
-      if (noteIsOn && (millis() - noteOnTime >= 100)) {
-        // Send note off after 500ms
-        sendNoteOff(midi_channel, midi_tap_note_number, 0);
-        // Todo changing the channel whilst in note on status could result in hanging note
-        noteIsOn = false;
-      }  
+    }
+
+    // Always release a pending tap note, even if the stream mode changed
+    // (e.g. to "Off") while the note was on; otherwise the note would hang.
+    if (noteIsOn && (millis() - noteOnTime >= 100)) {
+      sendNoteOff(midi_channel, midi_tap_note_number, 0);
+      noteIsOn = false;
     }
 
     
@@ -419,7 +419,7 @@ void sendMidiImuData(){
       sendCCValue(midi_channel, 80, theta); // CC 80 is a custom CC for pitch bend in this case
     }
     if (streamMode == STREAM_JAW || streamMode == STREAM_PITCH_JAW_ROLL_TAP) {
-      int phi = map(imuSnapshot.orientation[1], -90, 90, 0, 126);
+      int phi = map(imuSnapshot.orientation[1], -90, 90, 0, 127);
       phi = constrain(phi, 0, 127);
       sendCCValue(midi_channel, 81, phi); // CC 81 is a custom CC for jaw movement in this case
     }
@@ -429,6 +429,19 @@ void sendMidiImuData(){
       sendCCValue(midi_channel, 82, psi); // CC 82 is a custom CC for roll movement in this case
     }
 
+}
+
+// Top lines of the GUI: which receiver we talk to
+void drawLinkHeader() {
+#ifdef TRANSPORT_ESPNOW
+  // ESP-NOW broadcasts without pairing: show the channel instead of a receiver
+  canvas.drawCenterString("ESP-NOW", M5.Display.width() / 2, 10);
+  canvas.drawCenterString("ch " + String(ESPNOW_CHANNEL), M5.Display.width() / 2, 30);
+#else
+  canvas.drawCenterString("Paired to", M5.Display.width() / 2, 10);
+  //receiver ID based on SSID
+  canvas.drawCenterString("Rec " + guiConnecedId, M5.Display.width() / 2, 30);
+#endif
 }
 
 uint32_t guiUpdated = 0;
@@ -454,9 +467,7 @@ void updateGui(bool force) {
         canvas.setTextSize(2);
     }
     else if (appMode == APP_MODE_CALIBRATING) {
-        canvas.drawCenterString("Paired to", M5.Display.width() / 2, 10);    
-        //receiver ID based on SSID
-        canvas.drawCenterString("Rec " + guiConnecedId, M5.Display.width() / 2, 30);
+        drawLinkHeader();
         canvas.drawLine(0,50,M5.Display.width(), 50);
         canvas.setTextSize(2);
         canvas.drawCenterString("CALIBRATING", M5.Display.width() / 2, 80);   
@@ -480,8 +491,7 @@ void updateGui(bool force) {
        canvas.drawCenterString(guiConnecedId, M5.Display.width() / 2, 75);
     }
     else if (appMode == APP_MODE_TAP_AND_IMU) {
-      canvas.drawCenterString("Paired to", M5.Display.width() / 2, 10);    
-      canvas.drawCenterString("Rec " + guiConnecedId, M5.Display.width() / 2, 30);
+      drawLinkHeader();
       canvas.drawCenterString("Midi Ch 1", M5.Display.width() / 2, 50);
       canvas.drawLine(0,75,M5.Display.width(), 75);
 
