@@ -17,7 +17,7 @@ public:
     float acc[ImuXyz];
     float gyro[ImuXyz];
     float quat[ImuWxyz];
-    float orientation[ImuWpjw]; //pitch jaw roll
+    float orientation[ImuWpjw]; //pitch yaw roll
 
     explicit ImuData() : timestamp(0) {
         memset(this, 0, ImuDataLen);
@@ -29,7 +29,7 @@ public:
         std::sprintf(buf, "%i", (int)orientation[0]);
         return String(buf);
     }
-    String getJawString() {
+    String getYawString() {
         char buf[20];  // enough for 0–255
         std::sprintf(buf, "%i", (int)orientation[1]);
         return String(buf);

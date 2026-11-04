@@ -56,16 +56,16 @@ ApplicationMode appMode = APP_MODE_CONNECTING;
 
 //appmode
 enum StreamOptions {
-  STREAM_PITCH_JAW_ROLL_TAP,
+  STREAM_PITCH_YAW_ROLL_TAP,
   STREAM_PITCH,
-  STREAM_JAW,
+  STREAM_YAW,
   STREAM_ROLL,
   STREAM_TAP,
-  STEAM_OFF,
+  STREAM_OFF,
   COUNT //helper to track size
 };
 
-StreamOptions streamMode = STREAM_PITCH_JAW_ROLL_TAP;
+StreamOptions streamMode = STREAM_PITCH_YAW_ROLL_TAP;
 StreamOptions nextStreamMode(StreamOptions c) {
     return static_cast<StreamOptions>((static_cast<int>(c) + 1) % static_cast<int>(StreamOptions::COUNT));
 }
@@ -121,7 +121,7 @@ void setupDisplay(){
 }
 
 //Big button under LCD:
-// short press sets midi channel
+// short press cycles the stream mode
 // long press sets zero point 
 uint32_t timeButtonAPressed = 0;
 void onButtonAPressedChanged(bool released, void* state) {
@@ -290,7 +290,7 @@ void ImuLoop(void* arg) {
           imuSampleCounter++;
           if (entryTime - imuSampleCounterTime  > 1000) {
             imuSampleCounterTime = entryTime;
-           Serial.printf("AHRS: Pitch=%.1f° Jaw=%.1f° Roll=%.1f° SR: %i | \n", imuData.orientation[0], imuData.orientation[1], imuData.orientation[2], imuSampleCounter);
+           Serial.printf("AHRS: Pitch=%.1f° Yaw=%.1f° Roll=%.1f° SR: %i | \n", imuData.orientation[0], imuData.orientation[1], imuData.orientation[2], imuSampleCounter);
 
             imuSampleCounter = 0;
           }
@@ -393,7 +393,7 @@ void sendNoteOff(uint8_t midi_channel, uint8_t note, uint8_t velocity) {
 
 void sendMidiImuData(){
 
-    if (streamMode == STREAM_TAP || streamMode == STREAM_PITCH_JAW_ROLL_TAP) {
+    if (streamMode == STREAM_TAP || streamMode == STREAM_PITCH_YAW_ROLL_TAP) {
       float accel_magnitude = sqrt(imuSnapshot.acc[0] * imuSnapshot.acc[0] + imuSnapshot.acc[1]*imuSnapshot.acc[1] + imuSnapshot.acc[2] * imuSnapshot.acc[2]);
       if (accel_magnitude > 3.0 && !noteIsOn) {
         Serial.println("Accel magnitude: " + String(accel_magnitude));
@@ -412,18 +412,18 @@ void sendMidiImuData(){
     }
 
     
-    if (streamMode == STREAM_PITCH || streamMode == STREAM_PITCH_JAW_ROLL_TAP) { 
+    if (streamMode == STREAM_PITCH || streamMode == STREAM_PITCH_YAW_ROLL_TAP) { 
       //send midi pitch bend message and map theta to pitch bend range
       int theta = map(imuSnapshot.orientation[0], -90, 90, 0, 127);
       theta = constrain(theta, 0, 127);
       sendCCValue(midi_channel, 80, theta); // CC 80 is a custom CC for pitch bend in this case
     }
-    if (streamMode == STREAM_JAW || streamMode == STREAM_PITCH_JAW_ROLL_TAP) {
+    if (streamMode == STREAM_YAW || streamMode == STREAM_PITCH_YAW_ROLL_TAP) {
       int phi = map(imuSnapshot.orientation[1], -90, 90, 0, 127);
       phi = constrain(phi, 0, 127);
-      sendCCValue(midi_channel, 81, phi); // CC 81 is a custom CC for jaw movement in this case
+      sendCCValue(midi_channel, 81, phi); // CC 81 is a custom CC for yaw movement in this case
     }
-    if (streamMode == STREAM_ROLL || streamMode == STREAM_PITCH_JAW_ROLL_TAP) {     
+    if (streamMode == STREAM_ROLL || streamMode == STREAM_PITCH_YAW_ROLL_TAP) {     
       int psi = map(imuSnapshot.orientation[2], -90, 90, 0, 127);
       psi = constrain(psi, 0, 127);
       sendCCValue(midi_channel, 82, psi); // CC 82 is a custom CC for roll movement in this case
@@ -506,11 +506,11 @@ void updateGui(bool force) {
       
     } else {
       //default gui
-      if (streamMode == STEAM_OFF) canvas.drawString("Off", 7, 90);
-      if (streamMode == STREAM_PITCH || streamMode == STREAM_PITCH_JAW_ROLL_TAP)  canvas.drawString("CC80 pitch", 7, 90);
-      if (streamMode == STREAM_JAW || streamMode == STREAM_PITCH_JAW_ROLL_TAP) canvas.drawString("CC81 jaw", 7, 110);
-      if (streamMode == STREAM_ROLL || streamMode == STREAM_PITCH_JAW_ROLL_TAP) canvas.drawString("CC82 roll", 7, 130);
-      if (streamMode == STREAM_TAP || streamMode == STREAM_PITCH_JAW_ROLL_TAP) canvas.drawString("C3 = tap", 7, 150);
+      if (streamMode == STREAM_OFF) canvas.drawString("Off", 7, 90);
+      if (streamMode == STREAM_PITCH || streamMode == STREAM_PITCH_YAW_ROLL_TAP)  canvas.drawString("CC80 pitch", 7, 90);
+      if (streamMode == STREAM_YAW || streamMode == STREAM_PITCH_YAW_ROLL_TAP) canvas.drawString("CC81 yaw", 7, 110);
+      if (streamMode == STREAM_ROLL || streamMode == STREAM_PITCH_YAW_ROLL_TAP) canvas.drawString("CC82 roll", 7, 130);
+      if (streamMode == STREAM_TAP || streamMode == STREAM_PITCH_YAW_ROLL_TAP) canvas.drawString("C3 = tap", 7, 150);
       canvas.drawLine(0,175,M5.Display.width(), 175);
 
 
@@ -519,7 +519,7 @@ void updateGui(bool force) {
       
         canvas.setTextSize(4);
       if (streamMode == STREAM_PITCH) canvas.drawCenterString(imuSnapshot.getPitchString(), M5.Display.width() / 2, 190);
-      if (streamMode == STREAM_JAW) canvas.drawCenterString(imuSnapshot.getJawString(), M5.Display.width() / 2, 190);
+      if (streamMode == STREAM_YAW) canvas.drawCenterString(imuSnapshot.getYawString(), M5.Display.width() / 2, 190);
       if (streamMode == STREAM_ROLL) canvas.drawCenterString(imuSnapshot.getRollString(), M5.Display.width() / 2, 190);
         canvas.setTextSize(2);
 

@@ -69,7 +69,7 @@ namespace imu {
              imuData.orientation[1] *= -1;
         }
 
-       /*          Serial.printf("Accel:  %.1f° \t %.1f° \t %.1f° \t Gyro:  %.1f° \t %.1f° \t %.1f° \t PitchJawRoll:  %.1f° \t %.1f° \t %.1f° \n",
+       /*          Serial.printf("Accel:  %.1f° \t %.1f° \t %.1f° \t Gyro:  %.1f° \t %.1f° \t %.1f° \t PitchYawRoll:  %.1f° \t %.1f° \t %.1f° \n",
                    imuData.acc[0], imuData.acc[1], imuData.acc[2], 
                    imuData.gyro[0],imuData.gyro[1],imuData.gyro[2],
                    imuData.orientation[0], imuData.orientation[1], imuData.orientation[2]);
