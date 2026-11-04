@@ -268,15 +268,32 @@ void toggleHeartbeatLed(CRGB color) {
 // single buffer would be overwritten before loop() reads it.
 #define ESPNOW_RX_QUEUE_LENGTH 32
 static QueueHandle_t espnow_rx_queue = NULL;
+// Counters for dropped packets (written in the WiFi task, reported in loop())
+static volatile uint32_t espnow_invalid_count = 0;
+static volatile uint32_t espnow_overflow_count = 0;
+
+// Same ranges as the OSC path: status byte 0x80-0xFF, data bytes 0-127
+static bool isValidMidi(const EspNowMidiMessage &m) {
+    return m.command_and_channel >= 0x80 && m.parameter1 <= 0x7F && m.parameter2 <= 0x7F;
+}
 
 #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
 void onEspNowReceive(const esp_now_recv_info_t *info, const uint8_t *data, int len) {
 #else
 void onEspNowReceive(const uint8_t *mac, const uint8_t *data, int len) {
 #endif
-    if (len == sizeof(EspNowMidiMessage) && data[0] == ESPNOW_MSG_MIDI) {
-        // Non-blocking: if the queue is full the message is dropped
-        if (espnow_rx_queue != NULL) xQueueSend(espnow_rx_queue, data, 0);
+    if (len != sizeof(EspNowMidiMessage) || data[0] != ESPNOW_MSG_MIDI) return;
+
+    EspNowMidiMessage msg;
+    memcpy(&msg, data, sizeof(msg));
+    // Anything on the channel can broadcast to us: drop malformed MIDI
+    if (!isValidMidi(msg)) {
+        espnow_invalid_count++;
+        return;
+    }
+    // Non-blocking: if the queue is full the message is dropped
+    if (espnow_rx_queue != NULL && xQueueSend(espnow_rx_queue, &msg, 0) != pdTRUE) {
+        espnow_overflow_count++;
     }
 }
 
@@ -427,6 +444,15 @@ void loop() {
     received = true;
   }
   if (received) toggleHeartbeatLed(CRGB::Green);
+
+  // Report dropped packets (only visible in Serial debug builds)
+  static uint32_t reported_invalid = 0, reported_overflow = 0;
+  if (enableSerial && (espnow_invalid_count != reported_invalid || espnow_overflow_count != reported_overflow)) {
+    reported_invalid = espnow_invalid_count;
+    reported_overflow = espnow_overflow_count;
+    Serial.printf("ESP-NOW dropped: %lu invalid, %lu queue full\n",
+                  (unsigned long)reported_invalid, (unsigned long)reported_overflow);
+  }
 #else
   // Check for incoming OSC messages and call the callback function for each received message
   myMicroOsc.onOscMessageReceived(myOnOscMessageReceived);
