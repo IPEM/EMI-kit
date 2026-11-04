@@ -259,14 +259,15 @@ void toggleHeartbeatLed(CRGB color) {
   } else {
     leds[0] = CRGB::Black; // Off
   }
-  if (enableSerial) Serial.println("Heartbeat LED toggled to " + String(leds[0] == CRGB::Black ? "Off" : "On"));
   FastLED.show();
 }
 
 #ifdef TRANSPORT_ESPNOW
-// ESP-NOW receive buffer
-static volatile bool espnow_message_ready = false;
-static EspNowMidiMessage espnow_rx_buffer;
+// ESP-NOW receive queue. The receive callback runs in the WiFi task; the sender
+// transmits several messages back-to-back (note + 3 CCs per 20 ms tick), so a
+// single buffer would be overwritten before loop() reads it.
+#define ESPNOW_RX_QUEUE_LENGTH 32
+static QueueHandle_t espnow_rx_queue = NULL;
 
 #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
 void onEspNowReceive(const esp_now_recv_info_t *info, const uint8_t *data, int len) {
@@ -274,8 +275,8 @@ void onEspNowReceive(const esp_now_recv_info_t *info, const uint8_t *data, int l
 void onEspNowReceive(const uint8_t *mac, const uint8_t *data, int len) {
 #endif
     if (len == sizeof(EspNowMidiMessage) && data[0] == ESPNOW_MSG_MIDI) {
-        memcpy((void *)&espnow_rx_buffer, data, sizeof(EspNowMidiMessage));
-        espnow_message_ready = true;
+        // Non-blocking: if the queue is full the message is dropped
+        if (espnow_rx_queue != NULL) xQueueSend(espnow_rx_queue, data, 0);
     }
 }
 
@@ -283,6 +284,12 @@ void setupEspNow() {
     WiFi.mode(WIFI_STA);
     WiFi.disconnect();
     esp_wifi_set_channel(ESPNOW_CHANNEL, WIFI_SECOND_CHAN_NONE);
+
+    espnow_rx_queue = xQueueCreate(ESPNOW_RX_QUEUE_LENGTH, sizeof(EspNowMidiMessage));
+    if (espnow_rx_queue == NULL) {
+        if (enableSerial) Serial.println("ESP-NOW receive queue allocation failed");
+        return;
+    }
 
     if (esp_now_init() != ESP_OK) {
         if (enableSerial) Serial.println("ESP-NOW init failed");
@@ -412,16 +419,14 @@ void setup() {
 
 void loop() {
 #ifdef TRANSPORT_ESPNOW
-  if (espnow_message_ready) {
-    espnow_message_ready = false;
-    sendMidiMessage(
-      espnow_rx_buffer.command_and_channel,
-      espnow_rx_buffer.parameter1,
-      espnow_rx_buffer.parameter2,
-      0 // cable_num
-    );
-    toggleHeartbeatLed(CRGB::Green);
+  // Drain all queued messages so bursts are forwarded without loss
+  EspNowMidiMessage msg;
+  bool received = false;
+  while (espnow_rx_queue != NULL && xQueueReceive(espnow_rx_queue, &msg, 0) == pdTRUE) {
+    sendMidiMessage(msg.command_and_channel, msg.parameter1, msg.parameter2, cable_num);
+    received = true;
   }
+  if (received) toggleHeartbeatLed(CRGB::Green);
 #else
   // Check for incoming OSC messages and call the callback function for each received message
   myMicroOsc.onOscMessageReceived(myOnOscMessageReceived);
