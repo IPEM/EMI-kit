@@ -44,10 +44,10 @@ const int device_id = 6;
 const char* ap_ssid_format = "OSC-to-MIDI-%02d";
 char ap_ssid[32];
 const char* ap_password = "midi1234";
-const char ap_channel = (device_id * 3) % 10 + 1; //avoids that device 1 and two are on a neighboring channel
+const uint8_t ap_channel = (device_id * 3) % 10 + 1; //avoids that device 1 and two are on a neighboring channel
 #endif
 
-// LED configuration forM5Stack STAMP-S3
+// LED configuration for M5Stack STAMP-S3
 #define PIN_LED    21
 #define NUM_LEDS   1
 CRGB leds[NUM_LEDS];
@@ -295,11 +295,11 @@ void setupEspNow() {
 #else
 // Setup WiFi Access Point
 void setupWiFi() {  
+  // Set SSID based on device ID
+  snprintf(ap_ssid, sizeof(ap_ssid), ap_ssid_format, device_id);
+
   if (enableSerial) Serial.print("Creating WiFi Access Point: ");
   if (enableSerial) Serial.println(ap_ssid);
-
-  // Set SSID based on device ID
-  sprintf(ap_ssid, ap_ssid_format, device_id);
   
   // Configure Access Point
   WiFi.softAPdisconnect(true);
@@ -352,7 +352,7 @@ void handleMidiMessage(MicroOscMessage& message) {
   uint8_t virtual_cable_num = 0; // Using cable 0 for simplicity
   
   // Constrain values to valid MIDI ranges
-  // Command and channel: is between 0x7F and 0xF0
+  // Command and channel: status byte between 0x80 and 0xFF
   command_and_channel = constrain(command_and_channel, 0x80, 0xFF);
   parameter1 = constrain(parameter1, 0, 127);
   parameter2 = constrain(parameter2, 0, 127);
@@ -402,8 +402,8 @@ void setup() {
 #endif
   setupHeartbeatLed();
 
-  for (size_t i = i=0; i < 10; i++) {
-    toggleHeartbeatLed(CRGB::Red); // Blink green to indicate ready state
+  for (size_t i = 0; i < 10; i++) {
+    toggleHeartbeatLed(CRGB::Red); // Blink red to indicate startup
     delay(500);
   }
   
