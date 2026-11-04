@@ -91,7 +91,6 @@ static uint8_t const channel = 0;   // 0 for channel 1
 // Function declarations
 void setupUSBMIDI();
 void setupHeartbeatLed();
-void sendMidiCC(uint8_t controller, uint8_t value);
 #ifdef TRANSPORT_ESPNOW
   void setupEspNow();
 #else
