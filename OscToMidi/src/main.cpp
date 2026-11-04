@@ -16,7 +16,7 @@
 #ifdef TRANSPORT_ESPNOW
   #include <esp_now.h>
   #include <esp_wifi.h>
-  #include "espnow_protocol.h"
+  #include <espnow_protocol.h>  // shared/espnow_protocol (via lib_extra_dirs)
 #else
   #include <ESPmDNS.h>
   #include <WiFiUdp.h>
