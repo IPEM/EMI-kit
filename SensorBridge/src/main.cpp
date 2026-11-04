@@ -19,7 +19,8 @@
 #define TASK_SLEEP_IMU 5 // = 1000[ms] / 200[Hz]
 #define MUTEX_DEFAULT_WAIT 500UL
 imu::ImuReader* imuReader;
-imu::ImuData imuData;
+imu::ImuData imuData;      // written by the IMU task (core 0), guarded by imuDataMutex
+imu::ImuData imuSnapshot;  // copy for the main loop (MIDI + GUI), see takeImuSnapshot()
 imu::AverageCalcXYZ gyroAve;
 bool gyroOffsetInstalled = false;
 static SemaphoreHandle_t imuDataMutex = NULL;
@@ -135,8 +136,10 @@ void onButtonAPressedChanged(bool released, void* state) {
       streamMode = nextStreamMode(streamMode);
     } else {      
       Serial.print("setting zero point\n"); 
-      if (appMode == APP_MODE_TAP_AND_IMU) {
+      if (appMode == APP_MODE_TAP_AND_IMU &&
+          xSemaphoreTake(imuDataMutex, MUTEX_DEFAULT_WAIT) == pdTRUE) {
         imuReader->setZero();
+        xSemaphoreGive(imuDataMutex);
       }
     }
   }
@@ -236,12 +239,15 @@ void dnsDiscoveryTask(void *parameter) {
 #endif // !TRANSPORT_ESPNOW
 
 void enableCalibration() {
+    // The IMU task reads the reader/averager while calibrating: hold the mutex
+    bool locked = imuDataMutex != NULL && xSemaphoreTake(imuDataMutex, MUTEX_DEFAULT_WAIT) == pdTRUE;
     appMode = APP_MODE_CALIBRATING;
     gyroOffsetInstalled = false;
     imuReader->writeGyroOffset(0.f, 0.f, 0.f);
     gyroAve.reset();                     
     M5.Imu.clearOffsetData(); //fixes bug when moing on boot
     M5.Imu.setCalibration(255, 255, 255);
+    if (locked) xSemaphoreGive(imuDataMutex);
 }
 
 /* Main thread pulling imu data, calibration &  calculating AHRS*/
@@ -288,15 +294,24 @@ void ImuLoop(void* arg) {
 
             imuSampleCounter = 0;
           }
-        
+
+          xSemaphoreGive(imuDataMutex); // only release a mutex we actually took
         }
-        xSemaphoreGive(imuDataMutex);
     }
 
 
     // idle
     int32_t sleep = TASK_SLEEP_IMU - (millis() - entryTime);
     vTaskDelay((sleep > 0) ? sleep : 0);
+  }
+}
+
+// Copy the latest IMU data for use on the main loop without holding the mutex
+// while sending MIDI or drawing the GUI.
+void takeImuSnapshot() {
+  if (imuDataMutex != NULL && xSemaphoreTake(imuDataMutex, pdMS_TO_TICKS(5)) == pdTRUE) {
+    imuSnapshot = imuData;
+    xSemaphoreGive(imuDataMutex);
   }
 }
 
@@ -380,7 +395,7 @@ void sendNoteOff(uint8_t midi_channel, uint8_t note, uint8_t velocity) {
 void sendMidiImuData(){
 
     if (streamMode == STREAM_TAP || streamMode == STREAM_PITCH_JAW_ROLL_TAP) {
-      float accel_magnitude = sqrt(imuData.acc[0] * imuData.acc[0] + imuData.acc[1]*imuData.acc[1] + imuData.acc[2] * imuData.acc[2]);
+      float accel_magnitude = sqrt(imuSnapshot.acc[0] * imuSnapshot.acc[0] + imuSnapshot.acc[1]*imuSnapshot.acc[1] + imuSnapshot.acc[2] * imuSnapshot.acc[2]);
       if (accel_magnitude > 3.0 && !noteIsOn) {
         Serial.println("Accel magnitude: " + String(accel_magnitude));
         // Send note on
@@ -399,17 +414,17 @@ void sendMidiImuData(){
     
     if (streamMode == STREAM_PITCH || streamMode == STREAM_PITCH_JAW_ROLL_TAP) { 
       //send midi pitch bend message and map theta to pitch bend range
-      int theta = map(imuData.orientation[0], -90, 90, 0, 127);
+      int theta = map(imuSnapshot.orientation[0], -90, 90, 0, 127);
       theta = constrain(theta, 0, 127);
       sendCCValue(midi_channel, 80, theta); // CC 80 is a custom CC for pitch bend in this case
     }
     if (streamMode == STREAM_JAW || streamMode == STREAM_PITCH_JAW_ROLL_TAP) {
-      int phi = map(imuData.orientation[1], -90, 90, 0, 126);
+      int phi = map(imuSnapshot.orientation[1], -90, 90, 0, 126);
       phi = constrain(phi, 0, 127);
       sendCCValue(midi_channel, 81, phi); // CC 81 is a custom CC for jaw movement in this case
     }
     if (streamMode == STREAM_ROLL || streamMode == STREAM_PITCH_JAW_ROLL_TAP) {     
-      int psi = map(imuData.orientation[2], -90, 90, 0, 127);
+      int psi = map(imuSnapshot.orientation[2], -90, 90, 0, 127);
       psi = constrain(psi, 0, 127);
       sendCCValue(midi_channel, 82, psi); // CC 82 is a custom CC for roll movement in this case
     }
@@ -493,9 +508,9 @@ void updateGui(bool force) {
      
       
         canvas.setTextSize(4);
-      if (streamMode == STREAM_PITCH) canvas.drawCenterString(imuData.getPitchString(), M5.Display.width() / 2, 190);
-      if (streamMode == STREAM_JAW) canvas.drawCenterString(imuData.getJawString(), M5.Display.width() / 2, 190);
-      if (streamMode == STREAM_ROLL) canvas.drawCenterString(imuData.getRollString(), M5.Display.width() / 2, 190);
+      if (streamMode == STREAM_PITCH) canvas.drawCenterString(imuSnapshot.getPitchString(), M5.Display.width() / 2, 190);
+      if (streamMode == STREAM_JAW) canvas.drawCenterString(imuSnapshot.getJawString(), M5.Display.width() / 2, 190);
+      if (streamMode == STREAM_ROLL) canvas.drawCenterString(imuSnapshot.getRollString(), M5.Display.width() / 2, 190);
         canvas.setTextSize(2);
 
 
@@ -522,6 +537,7 @@ void updateGui() {
 void loop(){  
   
   int32_t entryTime = millis();
+  takeImuSnapshot();
   updateGui();
   
 #ifndef TRANSPORT_ESPNOW
