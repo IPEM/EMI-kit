@@ -25,18 +25,12 @@
 
 
 
-// Some midi receivers (like DAWs) do not like to receive the same MIDI message twice in a row.
-// For example, sending the same cc message with identical values multiple times in a row can cause issues.
-const boolean filterDuplicateMessages = true; // Set to true to filter out duplicate messages
-// Structure to store MIDI message history
-struct MidiMessage {
-  uint8_t command_and_channel;
-  uint8_t parameter1;
-  uint8_t parameter2;
-};
-const size_t midi_duplicate_filter_size = 5; // Number of previous messages to remember
-static MidiMessage midi_duplicate_filter_history[midi_duplicate_filter_size];
-static int midi_duplicate_filter_history_index = 0;
+#include "MidiDuplicateFilter.h"
+
+// Some midi receivers (like DAWs) do not like to receive the same CC value twice in a row.
+// The filter drops repeated CC values per controller; notes are never filtered.
+const boolean filterDuplicateMessages = true; // Set to true to filter out duplicate CC messages
+static MidiDuplicateFilter<16> midiDuplicateFilter; // remembers the last value of up to 16 controllers
 
 #ifndef TRANSPORT_ESPNOW
 // WiFi Access Point credentials
@@ -97,8 +91,6 @@ static uint8_t const channel = 0;   // 0 for channel 1
 // Function declarations
 void setupUSBMIDI();
 void setupHeartbeatLed();
-bool isDuplicateMIDIMessage(uint8_t command_and_channel, uint8_t parameter1, uint8_t parameter2);
-void sendMidiCC(uint8_t controller, uint8_t value);
 #ifdef TRANSPORT_ESPNOW
   void setupEspNow();
 #else
@@ -128,7 +120,7 @@ void sendMidiCC(uint8_t controller, uint8_t value);
 // Send MIDI standard message over USB MIDI
 void sendMidiMessage(uint8_t command_and_channel, uint8_t parameter1, uint8_t parameter2,uint8_t virtual_cable_num) {
 
-  if (filterDuplicateMessages && isDuplicateMIDIMessage(command_and_channel, parameter1, parameter2)) {
+  if (filterDuplicateMessages && midiDuplicateFilter.isDuplicate(command_and_channel, parameter1, parameter2)) {
     if(enableSerial) Serial.printf("Duplicate MIDI message detected, not sending. Command: %d, Parameter 1: %d, Parameter 2: %d\n", command_and_channel, parameter1, parameter2);
     return;
   }
@@ -155,6 +147,11 @@ void sendMidiMessage(uint8_t command_and_channel, uint8_t parameter1, uint8_t pa
 // Dummy function when USB MIDI is not enabled
 void sendMidiMessage(uint8_t command_and_channel, uint8_t parameter1, uint8_t parameter2,uint8_t virtual_cable_num) {
 
+  if (filterDuplicateMessages && midiDuplicateFilter.isDuplicate(command_and_channel, parameter1, parameter2)) {
+    if (enableSerial) Serial.printf("Duplicate MIDI message detected, not sending. Command: %d, Parameter 1: %d, Parameter 2: %d\n", command_and_channel, parameter1, parameter2);
+    return;
+  }
+
   if (enableSerial) {
     // Parse command type from upper nibble
     uint8_t command_type = command_and_channel & 0xF0;
@@ -162,11 +159,6 @@ void sendMidiMessage(uint8_t command_and_channel, uint8_t parameter1, uint8_t pa
 
     Serial.printf("MIDI Debug [Cable:%d] [Ch:%d] ", virtual_cable_num, channel_from_command + 1);
 
-    if (filterDuplicateMessages && isDuplicateMIDIMessage(command_and_channel, parameter1, parameter2)) {
-      if(enableSerial) Serial.printf("Duplicate MIDI message detected, not sending. Command: %d, Parameter 1: %d, Parameter 2: %d\n", command_and_channel, parameter1, parameter2);
-      return;
-    }
-    
     switch (command_type) {
       case 0x80:
         Serial.printf("Note OFF: Note=%d, Velocity=%d", parameter1, parameter2);
@@ -194,49 +186,6 @@ void sendMidiMessage(uint8_t command_and_channel, uint8_t parameter1, uint8_t pa
 
 
 
-bool isDuplicateMIDIMessage(uint8_t command_and_channel, uint8_t parameter1, uint8_t parameter2) {
-  // Search through history to find an entry with matching command_and_channel
-  for (size_t i = 0; i < midi_duplicate_filter_size; i++) {
-    // Found an entry with the same command and channel
-    if (midi_duplicate_filter_history[i].command_and_channel == command_and_channel) {
-      // Check if all parameters match (this would be a duplicate)
-      if (midi_duplicate_filter_history[i].parameter1 == parameter1 && 
-          midi_duplicate_filter_history[i].parameter2 == parameter2) {
-        return true; // It's a duplicate - same command/channel with same parameters
-      } else {
-        // Same command/channel but different parameters - update and not a duplicate
-        midi_duplicate_filter_history[i].parameter1 = parameter1;
-        midi_duplicate_filter_history[i].parameter2 = parameter2;
-        return false;
-      }
-    }
-  }
-  
-  // command_and_channel not found in history - need to add it
-  // Find an empty slot or use the oldest slot (LRU replacement)
-  int slot_to_use = -1;
-  
-  // First, try to find an empty slot (command_and_channel == 0)
-  for (size_t i = 0; i < midi_duplicate_filter_size; i++) {
-    if (midi_duplicate_filter_history[i].command_and_channel == 0) {
-      slot_to_use = i;
-      break;
-    }
-  }
-  
-  // If no empty slot, use a simple rotating index (oldest entry)
-  if (slot_to_use == -1) {
-    slot_to_use = midi_duplicate_filter_history_index % midi_duplicate_filter_size;
-    midi_duplicate_filter_history_index++;
-  }
-  
-  // Add current message to the slot
-  midi_duplicate_filter_history[slot_to_use].command_and_channel = command_and_channel;
-  midi_duplicate_filter_history[slot_to_use].parameter1 = parameter1;
-  midi_duplicate_filter_history[slot_to_use].parameter2 = parameter2;
-  
-  return false; // Not a duplicate (new command_and_channel)
-}
 
 
 void setupHeartbeatLed(){
