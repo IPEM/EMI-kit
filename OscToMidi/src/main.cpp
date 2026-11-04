@@ -1,14 +1,14 @@
-
-// put the following define in comments to us the WiFi + UDP transport 
-// instead of ESP-NOW
-#define TRANSPORT_ESPNOW
-
-// For debugging purposes; 
-// Use this switch to enable USB MIDI functionality (which also disables 
-// Serial debug output since they share the same USB interface on the ESP32-S3)
-// Put the define in comments to enable Serial debug output and
-// disable USB MIDI functionality
-#define USE_USB_MIDI
+// Build-time switches are set per PlatformIO environment (see platformio.ini):
+//
+//   TRANSPORT_ESPNOW  defined: receive MIDI over ESP-NOW
+//                     not defined: WiFi access point + OSC over UDP
+//     pio run -e esp32-s3-devkitc-1-espnow   (ESP-NOW)
+//     pio run -e esp32-s3-devkitc-1          (WiFi + OSC)
+//
+//   USE_USB_MIDI      defined: act as a USB MIDI device (Serial debug output
+//                     is disabled, they share the same USB interface)
+//                     not defined: no USB MIDI, MIDI is printed on Serial for
+//                     debugging. Remove -DUSE_USB_MIDI from build_flags.
 
 #include <Arduino.h>
 #include <WiFi.h>
